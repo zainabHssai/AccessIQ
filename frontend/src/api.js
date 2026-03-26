@@ -49,7 +49,9 @@ export const campaignAPI = {
   myAssigned:   ()                          => api.get('/campaigns/assigned'),
   myAccounts:   (id)                        => api.get(`/campaigns/${id}/accounts/mine`),
   saveDecision: (campId, accId, decision)   => api.post(`/campaigns/${campId}/accounts/${accId}/decision`, { decision }),
-  export:       (id)                        => { window.location.href = `/api/campaigns/${id}/export`; },
+  export: (id) => { 
+    window.location.href = `https://accessiq-backend-production-55fa.up.railway.app/api/campaigns/${id}/export`; 
+  },
 };
 
 export const mailAPI = {
