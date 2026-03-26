@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --pwc-orange:  #e84c2e;
+  --pwc-orange2: #c93d22;
+  --pwc-dark:    #2d2d2d;
+  --pwc-grey:    #646464;
+  --pwc-light:   #f4f4f4;
+  --pwc-white:   #ffffff;
+  --border:      #e2e2e2;
+  --green:       #1a9e5f;
+  --red:         #d63b3b;
+  --amber:       #c97a0a;
+  --font:        'DM Sans', sans-serif;
+  --mono:        'DM Mono', monospace;
+  --transition:  all .18s cubic-bezier(.4,0,.2,1);
+  --shadow-sm:   0 1px 4px rgba(0,0,0,.06);
+  --shadow-md:   0 4px 16px rgba(0,0,0,.08);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,.12);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { font-size: 15px; }
+
+body {
+  font-family: var(--font);
+  background: var(--pwc-light);
+  color: var(--pwc-dark);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SCROLLBARS ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #ccc; }
+
+/* ── TRANSITIONS GLOBALES ── */
+button, input, select, textarea, a { transition: var(--transition); }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  background: var(--pwc-orange); color: #fff;
+  border: none; border-radius: 9px;
+  padding: 12px 20px; font-family: var(--font);
+  font-size: 15px; font-weight: 500; letter-spacing: -.1px;
+  cursor: pointer;
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 2px 8px rgba(232,76,46,.25);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--pwc-orange2);
+  box-shadow: 0 4px 14px rgba(232,76,46,.35);
+  transform: translateY(-1px);
+}
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+.btn-secondary {
+  background: transparent; color: var(--pwc-grey);
+  border: 1px solid var(--border); border-radius: 9px;
+  padding: 11px 20px; font-family: var(--font);
+  font-size: 15px; cursor: pointer;
+}
+.btn-secondary:hover { border-color: var(--pwc-orange); color: var(--pwc-orange); background: rgba(232,76,46,.03); }
+
+/* ── FORM ── */
+.form-group { margin-bottom: 18px; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: var(--pwc-grey); margin-bottom: 7px; letter-spacing: -.1px; }
+.form-input {
+  width: 100%; padding: 11px 14px;
+  border: 1.5px solid var(--border); border-radius: 9px;
+  font-family: var(--font); font-size: 15px; color: var(--pwc-dark);
+  background: #fff; outline: none;
+}
+.form-input:focus { border-color: var(--pwc-orange); box-shadow: 0 0 0 3px rgba(232,76,46,.08); }
+.form-input::placeholder { color: #c0c0c0; }
+.form-error { font-size: 13px; color: var(--red); margin-top: 5px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ── CARD ── */
+.card {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 14px; padding: 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── BADGE ── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 4px 11px; border-radius: 20px;
+  font-size: 12px; font-weight: 500;
+}
+.badge-pending  { background: rgba(201,122,10,.1);  color: #c97a0a; }
+.badge-active   { background: rgba(26,158,95,.1);   color: #1a9e5f; }
+.badge-rejected { background: rgba(214,59,59,.1);   color: #d63b3b; }
+.badge-admin    { background: rgba(232,76,46,.1);    color: var(--pwc-orange); }
+.badge-manager  { background: rgba(45,45,45,.07);    color: var(--pwc-grey); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes slideIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:none; } }
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+.fade-in  { animation: fadeIn  .25s ease both; }
+.slide-in { animation: slideIn .2s  ease both; }
+
+/* ── NOTIFICATION DOT ── */
+@keyframes notifPulse { 0%,100%{box-shadow:0 0 0 0 rgba(232,76,46,.4)} 70%{box-shadow:0 0 0 6px rgba(232,76,46,0)} }
+.notif-dot { animation: notifPulse 2s infinite; }

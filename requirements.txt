@@ -1,0 +1,8 @@
+flask
+flask-sqlalchemy
+flask-jwt-extended
+bcrypt
+flask-cors
+pandas
+openpyxl
+python-dotenv
