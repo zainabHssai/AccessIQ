@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+      {
+        "source": "/api/:path*",
+        "destination": "https://accessiq-backend-production-55fa.up.railway.app/api/:path*"
+      }
+    ]
+  }
