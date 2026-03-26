@@ -13,7 +13,7 @@
     "start": "set HOST=0.0.0.0 && react-scripts start",
     "build": "react-scripts build"
   },
-  "proxy": "http://localhost:5000",
+  "proxy": "https://accessiq-backend-production-55fa.up.railway.app",
   "browserslist": {
     "production": [
       ">0.2%",
