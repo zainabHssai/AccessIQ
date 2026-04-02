@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authAPI } from '../api';
+import { useLang, LangToggle } from '../i18n';
 
 export default function RegisterPage() {
+  const { t } = useLang();
   const [form, setForm] = useState({
     nom: '', prenom: '', email: '', password: '', confirm: '', role: 'manager',
   });
@@ -15,8 +17,8 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (form.password !== form.confirm) return setError('Les mots de passe ne correspondent pas');
-    if (form.password.length < 8) return setError('Mot de passe trop court (min 8 caractères)');
+    if (form.password !== form.confirm) return setError(t('reg.pwMismatch'));
+    if (form.password.length < 8) return setError(t('reg.pwTooShort'));
     setLoading(true);
     try {
       await authAPI.register({
@@ -25,7 +27,7 @@ export default function RegisterPage() {
       });
       setSuccess(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Erreur lors de la demande');
+      setError(err.response?.data?.error || t('error'));
     } finally {
       setLoading(false);
     }
@@ -35,14 +37,11 @@ export default function RegisterPage() {
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.successIcon}>✓</div>
-        <h2 style={styles.cardTitle}>Demande envoyée !</h2>
-        <p style={styles.cardSub}>
-          Votre demande de compte a bien été transmise à l'administrateur.
-          Vous recevrez un email dès que votre compte sera activé.
-        </p>
+        <h2 style={styles.cardTitle}>{t('reg.successTitle')}</h2>
+        <p style={styles.cardSub}>{t('reg.successText')}</p>
         <Link to="/login">
           <button className="btn-primary" style={{ marginTop: 8 }}>
-            Retour à la connexion
+            {t('reg.backToLogin')}
           </button>
         </Link>
       </div>
@@ -52,79 +51,77 @@ export default function RegisterPage() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.logoMark}>A</div>
-          <div>
-            <div style={styles.logoName}>AccessIQ</div>
-            <div style={styles.logoPwC}>PwC</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+          <div style={styles.header}>
+            <div style={styles.logoMark}>A</div>
+            <div>
+              <div style={styles.logoName}>AccessIQ</div>
+              <div style={styles.logoPwC}>PwC</div>
+            </div>
           </div>
+          <LangToggle />
         </div>
 
-        <h2 style={styles.cardTitle}>Demander un accès</h2>
-        <p style={styles.cardSub}>
-          Votre demande sera examinée par un administrateur avant activation.
-        </p>
+        <h2 style={styles.cardTitle}>{t('reg.title')}</h2>
+        <p style={styles.cardSub}>{t('reg.subtitle')}</p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Prénom</label>
-              <input className="form-input" placeholder="Prénom"
+              <label className="form-label">{t('reg.firstname')}</label>
+              <input className="form-input" placeholder={t('reg.firstname')}
                 value={form.prenom} onChange={e => set('prenom', e.target.value)} required />
             </div>
             <div className="form-group">
-              <label className="form-label">Nom</label>
-              <input className="form-input" placeholder="Nom"
+              <label className="form-label">{t('reg.lastname')}</label>
+              <input className="form-input" placeholder={t('reg.lastname')}
                 value={form.nom} onChange={e => set('nom', e.target.value)} required />
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Adresse email professionnelle</label>
+            <label className="form-label">{t('reg.email')}</label>
             <input className="form-input" type="email" placeholder="vous@pwc.com"
               value={form.email} onChange={e => set('email', e.target.value)} required />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Rôle</label>
+            <label className="form-label">{t('reg.role')}</label>
             <select className="form-input" value={form.role} onChange={e => set('role', e.target.value)}>
-              <option value="manager">Manager — je valide les accès de mon équipe</option>
-              <option value="responsable_app">Responsable applicatif — je gère une application</option>
+              <option value="manager">{t('reg.roleManager')}</option>
+              <option value="responsable_app">{t('reg.roleRespo')}</option>
             </select>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Mot de passe</label>
-              <input className="form-input" type="password" placeholder="Min. 8 caractères"
+              <label className="form-label">{t('reg.password')}</label>
+              <input className="form-input" type="password" placeholder="Min. 8"
                 value={form.password} onChange={e => set('password', e.target.value)} required />
             </div>
             <div className="form-group">
-              <label className="form-label">Confirmer</label>
-              <input className="form-input" type="password" placeholder="Confirmez"
+              <label className="form-label">{t('reg.confirm')}</label>
+              <input className="form-input" type="password" placeholder="…"
                 value={form.confirm} onChange={e => set('confirm', e.target.value)} required />
             </div>
           </div>
 
           {error && <div className="form-error" style={{ marginBottom: 14 }}>{error}</div>}
 
-          {/* Info box */}
           <div style={styles.infoBox}>
             <span style={{ fontSize: 14 }}>ℹ</span>
-            Après soumission, un administrateur recevra une notification et
-            devra approuver votre compte avant que vous puissiez vous connecter.
+            {t('reg.info')}
           </div>
 
           <button className="btn-primary" type="submit" disabled={loading} style={{ marginTop: 16 }}>
-            {loading ? 'Envoi en cours…' : 'Envoyer la demande'}
+            {loading ? t('reg.submitting') : t('reg.submit')}
           </button>
         </form>
 
         <p style={styles.loginLink}>
-          Vous avez déjà un compte ?{' '}
+          {t('reg.hasAccount')}{' '}
           <Link to="/login" style={{ color: 'var(--pwc-orange)', fontWeight: 500 }}>
-            Se connecter
+            {t('reg.signIn')}
           </Link>
         </p>
       </div>
@@ -143,7 +140,7 @@ const styles = {
     border: '1px solid var(--border)', width: '100%', maxWidth: 520,
     boxShadow: '0 4px 24px rgba(0,0,0,.07)',
   },
-  header:   { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 },
+  header:   { display: 'flex', alignItems: 'center', gap: 10 },
   logoMark: {
     width: 36, height: 36, borderRadius: 9,
     background: 'var(--pwc-orange)', color: '#fff',

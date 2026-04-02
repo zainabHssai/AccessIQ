@@ -31,6 +31,7 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        _migrate_db()
         _seed_admin()
 
     @app.route('/', defaults={'path': ''})
@@ -45,6 +46,19 @@ def create_app():
         return '<h2>AccessIQ Backend OK</h2>'
 
     return app
+
+
+def _migrate_db():
+    """Ajoute les colonnes manquantes sans détruire la DB existante."""
+    migrations = [
+        "ALTER TABLE account_reviews ADD COLUMN motif VARCHAR(300)",
+    ]
+    for sql in migrations:
+        try:
+            db.session.execute(db.text(sql))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 
 def _seed_admin():

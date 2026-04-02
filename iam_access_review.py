@@ -85,17 +85,17 @@ REQUIRED_APP_COLS = ["Account_ID"]
 
 # Couleurs rapport
 COLOR = {
-    "header_ad":      "1F3864",  # bleu foncé
-    "header_app":     "14375E",
-    "header_risk":    "7B0000",
-    "header_action":  "375623",
-    "orphan_ad":      "FFD7D7",  # rouge clair — orphelin AD
-    "orphan_app":     "FFDAC1",  # orange clair — orphelin App
-    "inactive":       "FFF2CC",  # jaune — inactif
-    "privileged":     "E2EFDA",  # vert clair — privilégié
-    "multi_risk":     "F4CCCC",  # rose — plusieurs risques
-    "normal":         "FFFFFF",
-    "alt_row":        "F5F5F5",
+    "header_ad":        "1F3864",  # bleu foncé
+    "header_app":       "14375E",
+    "header_risk":      "7B0000",
+    "header_action":    "375623",
+    "orphan":           "F4CCCC",  # rouge/rose — Orphelin (App sans AD) — risque élevé
+    "non_provisionne":  "D9E8F5",  # bleu clair — Non Provisionné (AD sans App) — risque faible
+    "inactive":         "FFF2CC",  # jaune — inactif
+    "privileged":       "E2EFDA",  # vert clair — privilégié
+    "multi_risk":       "F9B8B8",  # rose foncé — plusieurs risques
+    "normal":           "FFFFFF",
+    "alt_row":          "F5F5F5",
 }
 
 
@@ -306,12 +306,12 @@ def build_report(df_ad, df_app, orphans_app_mask, orphans_ad_mask,
                 "Groupes sensibles":    "",
                 "D sortie société":     "",
                 # Risques
-                "Orphelin (App)":       "OUI",
-                "Orphelin (AD)":        "NON",
+                "Orphelin":             "OUI",
+                "Non Provisionné":      "NON",
                 f"Inactif (>{threshold_days}j)": "N/A",
                 "Compte privilégié":    "NON",
                 "Score risque":         2,
-                "Libellé risque":       "Orphelin App",
+                "Libellé risque":       "Orphelin",
                 # Décision manager
                 "Décision manager":     "",
                 "Motif":                "",
@@ -352,8 +352,8 @@ def build_report(df_ad, df_app, orphans_app_mask, orphans_ad_mask,
                 "Last Logon AD":        str(last_logon.date() if last_logon else "Jamais"),
                 "Groupes sensibles":    grp_sensibles,
                 "D sortie société":     str(ad.get("D sortie société", "")),
-                "Orphelin (App)":       "NON",
-                "Orphelin (AD)":        "NON",
+                "Orphelin":             "NON",
+                "Non Provisionné":      "NON",
                 f"Inactif (>{threshold_days}j)": "OUI" if is_inactive else "NON",
                 "Compte privilégié":    "OUI" if is_priv else "NON",
                 "Score risque":         score,
@@ -372,10 +372,11 @@ def build_report(df_ad, df_app, orphans_app_mask, orphans_ad_mask,
         is_priv = bool(priv_mask.loc[idx]) if idx in priv_mask.index else False
         grp_sensibles = priv_groups.loc[idx] if idx in priv_groups.index else ""
 
-        risks = ["Orphelin AD"]
+        risks = []
         if is_inactive:  risks.append("Inactif")
         if is_priv:      risks.append("Privilégié")
-        score = len(risks)
+        # Non Provisionné = score 1 (risque faible, dans AD mais pas dans App)
+        score = 1 + len(risks)
 
         row = {
             "Account_ID":           ad_row.get("sAMAccountName", ""),
@@ -397,12 +398,12 @@ def build_report(df_ad, df_app, orphans_app_mask, orphans_ad_mask,
             "Last Logon AD":        str(last_logon.date() if last_logon else "Jamais"),
             "Groupes sensibles":    grp_sensibles,
             "D sortie société":     str(ad_row.get("D sortie société", "")),
-            "Orphelin (App)":       "NON",
-            "Orphelin (AD)":        "OUI",
+            "Orphelin":             "NON",
+            "Non Provisionné":      "OUI",
             f"Inactif (>{threshold_days}j)": "OUI" if is_inactive else "NON",
             "Compte privilégié":    "OUI" if is_priv else "NON",
             "Score risque":         score,
-            "Libellé risque":       ";".join(risks),
+            "Libellé risque":       "Non Provisionné" + ((";" + ";".join(risks)) if risks else ""),
             "Décision manager":     "",
             "Motif":                "",
             "Date analyse":         today_str,
@@ -450,8 +451,8 @@ def style_report(ws, df, threshold_days):
         "Last Logon AD":     COLOR["header_ad"],
         "Groupes sensibles": COLOR["header_ad"],
         "D sortie société":  COLOR["header_ad"],
-        "Orphelin (App)":    COLOR["header_risk"],
-        "Orphelin (AD)":     COLOR["header_risk"],
+        "Orphelin":          COLOR["header_risk"],
+        "Non Provisionné":   COLOR["header_risk"],
         inactif_col:         COLOR["header_risk"],
         "Compte privilégié": COLOR["header_risk"],
         "Score risque":      COLOR["header_risk"],
@@ -459,6 +460,7 @@ def style_report(ws, df, threshold_days):
         "Décision manager":  COLOR["header_action"],
         "Motif":             COLOR["header_action"],
         "Date analyse":      COLOR["header_action"],
+        "Date décision":     COLOR["header_action"],
     }
 
     col_names = list(df.columns)
@@ -478,19 +480,23 @@ def style_report(ws, df, threshold_days):
 
     for r_idx, row in df.iterrows():
         excel_row = r_idx + 2
-        is_orphan_app = str(row.get("Orphelin (App)", "NON")).upper() == "OUI"
-        is_orphan_ad  = str(row.get("Orphelin (AD)", "NON")).upper() == "OUI"
+        is_orphan_app = str(row.get("Orphelin",        "NON")).upper() == "OUI"
+        is_orphan_ad  = str(row.get("Non Provisionné", "NON")).upper() == "OUI"
         is_inactive   = str(row.get(inactif_col, "NON")).upper() == "OUI"
         is_priv       = str(row.get("Compte privilégié", "NON")).upper() == "OUI"
         score         = int(row.get("Score risque", 0))
 
         # Couleur de ligne
-        if score >= 2:
+        if score >= 2 and is_orphan_app:
             row_fill = make_fill(COLOR["multi_risk"])
         elif is_orphan_app:
-            row_fill = make_fill(COLOR["orphan_app"])
+            row_fill = make_fill(COLOR["orphan"])
+        elif is_orphan_ad and score >= 2:
+            row_fill = make_fill(COLOR["inactive"])   # Non Provisionné + autre risque
         elif is_orphan_ad:
-            row_fill = make_fill(COLOR["orphan_ad"])
+            row_fill = make_fill(COLOR["non_provisionne"])
+        elif is_inactive and is_priv:
+            row_fill = make_fill(COLOR["multi_risk"])
         elif is_inactive:
             row_fill = make_fill(COLOR["inactive"])
         elif is_priv:
@@ -516,7 +522,7 @@ def style_report(ws, df, threshold_days):
         "Direction": 18, "Nature contact": 15, "Job Title": 22,
         "Matricule manager": 18, "Nom manager": 20, "E-mail manager": 28,
         "Last Logon AD": 18, "Groupes sensibles": 30, "D sortie société": 16,
-        "Orphelin (App)": 14, "Orphelin (AD)": 14, inactif_col: 18,
+        "Orphelin": 14, "Non Provisionné": 18, inactif_col: 18,
         "Compte privilégié": 18, "Score risque": 13, "Libellé risque": 25,
         "Décision manager": 20, "Motif": 28, "Date analyse": 14,
     }
@@ -555,8 +561,8 @@ def add_stats_sheet(wb, df, threshold_days):
     inactif_col = f"Inactif (>{threshold_days}j)"
 
     total           = len(df)
-    n_orphan_app    = (df["Orphelin (App)"] == "OUI").sum()
-    n_orphan_ad     = (df["Orphelin (AD)"] == "OUI").sum()
+    n_orphan_app    = (df["Orphelin"]        == "OUI").sum()
+    n_orphan_ad     = (df["Non Provisionné"] == "OUI").sum()
     n_inactive      = (df[inactif_col] == "OUI").sum()
     n_priv          = (df["Compte privilégié"] == "OUI").sum()
     n_no_risk       = (df["Score risque"] == 0).sum()
@@ -571,7 +577,7 @@ def add_stats_sheet(wb, df, threshold_days):
         ("Total comptes analysés", total),
         ("Comptes sans risque détecté", n_no_risk),
         ("Comptes orphelins (App sans AD)", n_orphan_app),
-        ("Comptes orphelins (AD sans App)", n_orphan_ad),
+        ("Comptes non provisionnés (AD sans App)", n_orphan_ad),
         ("Comptes inactifs", n_inactive),
         ("Comptes à privilèges excessifs", n_priv),
         ("Comptes à risques multiples (score ≥ 2)", n_multi_risk),

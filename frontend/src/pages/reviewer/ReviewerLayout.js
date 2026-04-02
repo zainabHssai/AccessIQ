@@ -79,9 +79,11 @@ function ManagerDashboard() {
     setAccounts(r.data);
   };
 
-  const handleDecision = async (accountId, decision) => {
-    await campaignAPI.saveDecision(selected.id, accountId, decision);
-    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, decision } : a));
+  const handleDecision = async (accountId, decision, motif) => {
+    await campaignAPI.saveDecision(selected.id, accountId, decision, motif);
+    setAccounts(prev => prev.map(a =>
+      a.id === accountId ? { ...a, decision: decision || null, motif: motif || null } : a
+    ));
     setCampaigns(prev => prev.map(c =>
       c.id === selected.id
         ? { ...c, decided: c.decided + (decision ? 1 : -1) }
@@ -231,8 +233,13 @@ function ManagerDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filtered.map(a => (
-                          <tr key={a.id}>
+                        {filtered.map(a => {
+                          const rowBg = a.decision === 'Maintenir'   ? 'rgba(26,158,95,.06)'
+                                      : a.decision === 'Révoquer'    ? 'rgba(214,59,59,.06)'
+                                      : a.decision === 'Investiguer' ? 'rgba(201,122,10,.06)'
+                                      : 'transparent';
+                          return (
+                          <tr key={a.id} style={{ background: rowBg, transition: 'background .2s' }}>
                             <td style={S.td}>
                               <div style={{ fontWeight: 500, fontSize: 13 }}>{a.nom_complet}</div>
                               <div style={{ fontSize: 11, color: '#aaa', fontFamily: 'monospace' }}>{a.account_id}</div>
@@ -248,18 +255,22 @@ function ManagerDashboard() {
                             <td style={S.td}>{riskBadge(a)}</td>
                             <td style={S.td}>
                               {viewMode === 'treated'
-                                ? <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                                    {decisionChip(a.decision)}
-                                    <button onClick={() => handleDecision(a.id, '')}
-                                      style={{ fontSize:11, color:'#bbb', background:'transparent', border:'1px solid #e2e2e2', borderRadius:5, padding:'3px 7px', cursor:'pointer' }}>
-                                      Annuler
-                                    </button>
+                                ? <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                                      {decisionChip(a.decision)}
+                                      <button onClick={() => handleDecision(a.id, '', '')}
+                                        style={{ fontSize:11, color:'#bbb', background:'transparent', border:'1px solid #e2e2e2', borderRadius:5, padding:'3px 7px', cursor:'pointer' }}>
+                                        Annuler
+                                      </button>
+                                    </div>
+                                    {a.motif && <div style={{ fontSize:11, color:'#646464', fontStyle:'italic' }}>"{a.motif}"</div>}
                                   </div>
-                                : <DecisionButtons value={a.decision} onChange={dec => handleDecision(a.id, dec)} />
+                                : <DecisionButtons value={a.decision} onChange={(dec, mot) => handleDecision(a.id, dec, mot)} />
                               }
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                 }
@@ -285,34 +296,99 @@ function decisionChip(d) {
 }
 
 // ── Decision Buttons ──────────────────────────
+const DECISION_META = {
+  'Maintenir':   {
+    color: '#1a9e5f', bg: 'rgba(26,158,95,.12)',
+    useCase: 'Le compte sera conservé. Une justification sera archivée dans le rapport de conformité.',
+  },
+  'Révoquer':    {
+    color: '#d63b3b', bg: 'rgba(214,59,59,.12)',
+    useCase: 'L\'accès sera désactivé. Un ticket de révocation sera transmis au responsable IT.',
+  },
+  'Investiguer': {
+    color: '#c97a0a', bg: 'rgba(201,122,10,.12)',
+    useCase: 'Un audit approfondi sera déclenché. Le compte sera suspendu en attente de clarification.',
+  },
+};
+
 function DecisionButtons({ value, onChange }) {
-  const btns = [
-    { key: 'Maintenir',    label: 'Maintenir',   color: '#1a9e5f', bg: 'rgba(26,158,95,.12)'  },
-    { key: 'Révoquer',     label: 'Révoquer',    color: '#d63b3b', bg: 'rgba(214,59,59,.12)'  },
-    { key: 'Investiguer',  label: 'Investiguer', color: '#c97a0a', bg: 'rgba(201,122,10,.12)' },
-  ];
+  const [pending, setPending]   = useState(null);   // decision en cours de saisie
+  const [motifVal, setMotifVal] = useState('');
+
+  const handleBtnClick = (key) => {
+    if (value === key) {
+      // déjà sélectionné → annuler
+      onChange('', '');
+      setPending(null);
+      setMotifVal('');
+    } else {
+      setPending(key);
+      setMotifVal('');
+    }
+  };
+
+  const handleConfirm = () => {
+    if (!motifVal.trim()) return;
+    onChange(pending, motifVal.trim());
+    setPending(null);
+    setMotifVal('');
+  };
+
+  const handleCancel = () => { setPending(null); setMotifVal(''); };
+
+  const meta = pending ? DECISION_META[pending] : null;
+
   return (
-    <div style={{ display: 'flex', gap: 5 }}>
-      {btns.map(b => (
-        <button key={b.key} onClick={() => onChange(value === b.key ? '' : b.key)}
-          style={{
-            padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500,
-            cursor: 'pointer', border: 'none', transition: 'all .15s',
-            background: value === b.key ? b.bg : 'var(--pwc-light)',
-            color:      value === b.key ? b.color : '#aaa',
-            outline:    value === b.key ? `1.5px solid ${b.color}` : '1px solid #e2e2e2',
-          }}>
-          {b.label}
-        </button>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 5 }}>
+        {Object.entries(DECISION_META).map(([key, m]) => (
+          <button key={key} onClick={() => handleBtnClick(key)}
+            style={{
+              padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500,
+              cursor: 'pointer', border: 'none', transition: 'all .15s',
+              background: value === key ? m.bg : pending === key ? m.bg : 'var(--pwc-light)',
+              color:      value === key ? m.color : pending === key ? m.color : '#aaa',
+              outline:    value === key ? `1.5px solid ${m.color}` : pending === key ? `1.5px dashed ${m.color}` : '1px solid #e2e2e2',
+            }}>
+            {key}
+          </button>
+        ))}
+      </div>
+
+      {/* Panneau motif + use case */}
+      {pending && (
+        <div style={{ background: `${meta.bg}`, border: `1px solid ${meta.color}33`, borderRadius: 8, padding: '10px 12px', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginBottom: 4 }}>
+            {pending} — {meta.useCase}
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input
+              autoFocus
+              value={motifVal}
+              onChange={e => setMotifVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleConfirm(); if (e.key === 'Escape') handleCancel(); }}
+              placeholder="Motif obligatoire…"
+              style={{ flex: 1, padding: '5px 8px', borderRadius: 5, border: `1px solid ${meta.color}55`, fontSize: 12, outline: 'none' }}
+            />
+            <button onClick={handleConfirm} disabled={!motifVal.trim()}
+              style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: motifVal.trim() ? 'pointer' : 'not-allowed', background: meta.color, color: '#fff', border: 'none', opacity: motifVal.trim() ? 1 : .5 }}>
+              ✓
+            </button>
+            <button onClick={handleCancel}
+              style={{ padding: '5px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer', background: 'transparent', color: '#aaa', border: '1px solid #e2e2e2' }}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Risk Badge ────────────────────────────────
 function riskBadge(a) {
-  if (a.orphelin_app) return <span style={{ ...S.badge, background: 'rgba(214,59,59,.1)',  color: '#d63b3b' }}>Orphelin App</span>;
-  if (a.orphelin_ad)  return <span style={{ ...S.badge, background: 'rgba(201,122,10,.1)', color: '#c97a0a' }}>Orphelin AD</span>;
+  if (a.orphelin_app) return <span style={{ ...S.badge, background: 'rgba(214,59,59,.12)', color: '#d63b3b' }}>Orphelin</span>;
+  if (a.orphelin_ad)  return <span style={{ ...S.badge, background: 'rgba(30,100,200,.1)', color: '#1a5fb4' }}>Non Provisionné</span>;
   if (a.inactif && a.privilegie) return <span style={{ ...S.badge, background: 'rgba(214,59,59,.15)', color: '#d63b3b' }}>Multi-risque</span>;
   if (a.inactif)      return <span style={{ ...S.badge, background: 'rgba(201,122,10,.1)', color: '#c97a0a' }}>Inactif</span>;
   if (a.privilegie)   return <span style={{ ...S.badge, background: 'rgba(124,92,191,.1)', color: '#7c5cbf' }}>Privilégié</span>;

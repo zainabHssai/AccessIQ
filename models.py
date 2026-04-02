@@ -209,6 +209,7 @@ class AccountReview(db.Model):
     # Décision manager
     decision         = db.Column(db.String(50), nullable=True)
     # "Maintenir" | "Révoquer" | "Investiguer"
+    motif            = db.Column(db.String(300), nullable=True)
     decision_by      = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     decision_at      = db.Column(db.DateTime, nullable=True)
 
@@ -237,5 +238,6 @@ class AccountReview(db.Model):
             'score':             self.score,
             'libelle_risque':    self.libelle_risque,
             'decision':          self.decision,
+            'motif':             self.motif,
             'decision_at':       self.decision_at.strftime('%d/%m/%Y %H:%M') if self.decision_at else None,
         }

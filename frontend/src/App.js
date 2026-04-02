@@ -6,6 +6,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import AdminLayout        from './pages/admin/AdminLayout';
 import ReviewerLayout     from './pages/reviewer/ReviewerLayout';
 import { authAPI }        from './api';
+import { LanguageProvider } from './i18n';
 
 // ── Auth Context ─────────────────────────────
 export const AuthContext = createContext(null);
@@ -44,7 +45,7 @@ function AuthProvider({ children }) {
       <div style={{ textAlign:'center' }}>
         <div style={{ width:32, height:32, border:'3px solid #e2e2e2', borderTopColor:'#e84c2e', borderRadius:'50%', animation:'spin .7s linear infinite', margin:'0 auto 12px' }}/>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        <p style={{ color:'#646464', fontSize:13 }}>Chargement…</p>
+        <p style={{ color:'#646464', fontSize:13 }}>Loading…</p>
       </div>
     </div>
   );
@@ -67,6 +68,7 @@ function RequireAuth({ children, role }) {
 // ── App ──────────────────────────────────────
 export default function App() {
   return (
+    <LanguageProvider>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -93,6 +95,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </LanguageProvider>
   );
 }
 

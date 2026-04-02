@@ -1,9 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { campaignAPI, mailAPI } from '../../api';
+import { useLang } from '../../i18n';
 
-// ── Email Button ──────────────────────────────
+// ── Helpers ───────────────────────────────────
+function riskBadge(a, t) {
+  const s = { display:'inline-flex', padding:'3px 8px', borderRadius:20, fontSize:11, fontWeight:500 };
+  if (a.orphelin_app) return <span style={{ ...s, background:'rgba(214,59,59,.12)', color:'#d63b3b' }}>{t('risk.orphan')}</span>;
+  if (a.orphelin_ad)  return <span style={{ ...s, background:'rgba(30,100,200,.1)',  color:'#1a5fb4' }}>{t('risk.notProvisioned')}</span>;
+  if (a.inactif && a.privilegie) return <span style={{ ...s, background:'rgba(214,59,59,.15)', color:'#d63b3b' }}>{t('risk.multiRisk')}</span>;
+  if (a.inactif)      return <span style={{ ...s, background:'rgba(201,122,10,.1)',  color:'#c97a0a' }}>{t('risk.inactive')}</span>;
+  if (a.privilegie)   return <span style={{ ...s, background:'rgba(124,92,191,.1)',  color:'#7c5cbf' }}>{t('risk.privileged')}</span>;
+  return <span style={{ ...s, background:'rgba(26,158,95,.1)', color:'#1a9e5f' }}>{t('risk.ok')}</span>;
+}
+
+const DEC_LABELS = { 'Maintenir': 'dec.maintain', 'Révoquer': 'dec.revoke', 'Investiguer': 'dec.investigate' };
+const DEC_COLORS = {
+  'Maintenir':   { color:'#1a9e5f', bg:'rgba(26,158,95,.1)'  },
+  'Révoquer':    { color:'#d63b3b', bg:'rgba(214,59,59,.1)'  },
+  'Investiguer': { color:'#c97a0a', bg:'rgba(201,122,10,.1)' },
+};
+
+function decisionChip(d, t) {
+  if (!d) return <span style={{ fontSize:12, color:'#bbb' }}>—</span>;
+  const st = DEC_COLORS[d] || { color:'#646464', bg:'#f0f0f0' };
+  const label = DEC_LABELS[d] ? t(DEC_LABELS[d]) : d;
+  return <span style={{ display:'inline-flex', padding:'3px 8px', borderRadius:20, fontSize:11, fontWeight:500, background:st.bg, color:st.color }}>{label}</span>;
+}
+
+// ── Email Notify Button ───────────────────────
 function EmailButton({ campaignId, managerEmail, managerNom }) {
-  const [status, setStatus] = useState('idle'); // idle | sending | sent | error
+  const { t } = useLang();
+  const [status, setStatus] = useState('idle');
   const send = async () => {
     setStatus('sending');
     try {
@@ -13,10 +40,10 @@ function EmailButton({ campaignId, managerEmail, managerNom }) {
     } catch { setStatus('error'); setTimeout(() => setStatus('idle'), 3000); }
   };
   const map = {
-    idle:    { label:'✉ Notifier',    bg:'rgba(232,76,46,.08)', color:'var(--pwc-orange)', border:'rgba(232,76,46,.2)' },
-    sending: { label:'Envoi…',        bg:'#f5f5f5',             color:'#aaa',              border:'#e2e2e2' },
-    sent:    { label:'✓ Envoyé',      bg:'rgba(26,158,95,.08)', color:'#1a9e5f',           border:'rgba(26,158,95,.2)' },
-    error:   { label:'✕ Erreur',      bg:'rgba(214,59,59,.08)', color:'#d63b3b',           border:'rgba(214,59,59,.2)' },
+    idle:    { label: t('camp.mgrNotify'), bg:'rgba(232,76,46,.08)', color:'var(--pwc-orange)', border:'rgba(232,76,46,.2)' },
+    sending: { label: t('sending'),        bg:'#f5f5f5',              color:'#aaa',              border:'#e2e2e2' },
+    sent:    { label: t('sent'),           bg:'rgba(26,158,95,.08)',   color:'#1a9e5f',           border:'rgba(26,158,95,.2)' },
+    error:   { label: t('error'),          bg:'rgba(214,59,59,.08)',   color:'#d63b3b',           border:'rgba(214,59,59,.2)' },
   };
   const st = map[status];
   return (
@@ -27,8 +54,9 @@ function EmailButton({ campaignId, managerEmail, managerNom }) {
   );
 }
 
-// ── Création campagne ─────────────────────────
+// ── New Campaign Modal ────────────────────────
 function NewCampaignModal({ onClose, onCreated }) {
+  const { t } = useLang();
   const [form, setForm] = useState({
     nom: '', description: '', inactivityDays: 120,
     sensitiveGroups: 'Domain Admins,Enterprise Admins', dateEcheance: '',
@@ -43,10 +71,10 @@ function NewCampaignModal({ onClose, onCreated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!fileApp) return setError('Chargez le fichier Application');
-    if (!fileAD)  return setError('Chargez le fichier AD');
+    if (!fileApp) return setError(t('camp.fileApp'));
+    if (!fileAD)  return setError(t('camp.fileAD'));
     setError(''); setLoading(true); setProgress(15);
-    setProgressLabel('Envoi des fichiers…');
+    setProgressLabel(t('camp.sendingFiles'));
 
     const fd = new FormData();
     Object.entries(form).forEach(([k,v]) => fd.append(k, v));
@@ -54,14 +82,14 @@ function NewCampaignModal({ onClose, onCreated }) {
     fd.append('fileAD',  fileAD);
 
     try {
-      setProgress(40); setProgressLabel('Analyse Python en cours…');
+      setProgress(40); setProgressLabel(t('camp.analyzing'));
       const res = await campaignAPI.create(fd);
-      setProgress(90); setProgressLabel('Enregistrement…');
+      setProgress(90); setProgressLabel(t('camp.savingLabel'));
       await new Promise(r => setTimeout(r, 300));
       setProgress(100);
       onCreated(res.data);
     } catch(err) {
-      setError(err.response?.data?.error || 'Erreur lors de l\'analyse');
+      setError(err.response?.data?.error || t('error'));
       setLoading(false); setProgress(0);
     }
   };
@@ -70,62 +98,60 @@ function NewCampaignModal({ onClose, onCreated }) {
     <div style={Mo.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={Mo.modal}>
         <div style={Mo.header}>
-          <h2 style={Mo.title}>Nouvelle campagne</h2>
+          <h2 style={Mo.title}>{t('camp.newCampaign')}</h2>
           <button onClick={onClose} style={Mo.closeBtn}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Nom de la campagne *</label>
-            <input className="form-input" placeholder="ex: Revue accès Q1 2025 — SAP"
+            <label className="form-label">{t('camp.name')}</label>
+            <input className="form-input" placeholder={t('camp.namePh')}
               value={form.nom} onChange={e => set('nom', e.target.value)} required />
           </div>
           <div className="form-group">
-            <label className="form-label">Description</label>
-            <textarea className="form-input" rows={2} placeholder="Objectif, périmètre…"
+            <label className="form-label">{t('camp.description')}</label>
+            <textarea className="form-input" rows={2} placeholder={t('camp.descPh')}
               value={form.description} onChange={e => set('description', e.target.value)}
               style={{ resize: 'vertical' }} />
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Seuil inactivité (jours)</label>
+              <label className="form-label">{t('camp.inactivityDays')}</label>
               <input className="form-input" type="number" min={1} max={365}
                 value={form.inactivityDays} onChange={e => set('inactivityDays', e.target.value)} />
             </div>
             <div className="form-group">
-              <label className="form-label">Date d'échéance</label>
+              <label className="form-label">{t('camp.deadline')}</label>
               <input className="form-input" type="date"
                 value={form.dateEcheance} onChange={e => set('dateEcheance', e.target.value)} />
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">Groupes sensibles (séparés par ,)</label>
+            <label className="form-label">{t('camp.sensitiveGroups')}</label>
             <input className="form-input"
               value={form.sensitiveGroups} onChange={e => set('sensitiveGroups', e.target.value)} />
           </div>
 
-          {/* Upload App */}
           <div className="form-group">
-            <label className="form-label">Extract Application (.xlsx) *</label>
+            <label className="form-label">{t('camp.fileApp')}</label>
             <label style={{ ...Mo.uploadZone, ...(fileApp ? Mo.uploadDone : {}) }}>
               <input type="file" accept=".xlsx,.xls" style={{ display:'none' }}
                 onChange={e => setFileApp(e.target.files[0])} />
               <span style={{ fontSize: 20 }}>{fileApp ? '✓' : '📊'}</span>
               <span style={{ fontSize: 13, color: fileApp ? '#1a9e5f' : '#aaa' }}>
-                {fileApp ? fileApp.name : 'Cliquez pour charger l\'extract Application'}
+                {fileApp ? fileApp.name : t('camp.uploadApp')}
               </span>
             </label>
           </div>
 
-          {/* Upload AD */}
           <div className="form-group">
-            <label className="form-label">Extract Active Directory (.xlsx) *</label>
+            <label className="form-label">{t('camp.fileAD')}</label>
             <label style={{ ...Mo.uploadZone, ...(fileAD ? Mo.uploadDone : {}) }}>
               <input type="file" accept=".xlsx,.xls" style={{ display:'none' }}
                 onChange={e => setFileAD(e.target.files[0])} />
               <span style={{ fontSize: 20 }}>{fileAD ? '✓' : '🗂'}</span>
               <span style={{ fontSize: 13, color: fileAD ? '#1a9e5f' : '#aaa' }}>
-                {fileAD ? fileAD.name : 'Cliquez pour charger l\'extract AD'}
+                {fileAD ? fileAD.name : t('camp.uploadAD')}
               </span>
             </label>
           </div>
@@ -144,9 +170,9 @@ function NewCampaignModal({ onClose, onCreated }) {
           {error && <div className="form-error" style={{ marginBottom: 12 }}>{error}</div>}
 
           <div style={{ display:'flex', gap:10, marginTop:8 }}>
-            <button type="button" className="btn-secondary" onClick={onClose} style={{ flex:1 }}>Annuler</button>
+            <button type="button" className="btn-secondary" onClick={onClose} style={{ flex:1 }}>{t('cancel')}</button>
             <button type="submit" className="btn-primary" disabled={loading} style={{ flex:2 }}>
-              {loading ? 'Analyse en cours…' : 'Lancer l\'analyse'}
+              {loading ? t('camp.launching') : t('camp.launch')}
             </button>
           </div>
         </form>
@@ -155,8 +181,9 @@ function NewCampaignModal({ onClose, onCreated }) {
   );
 }
 
-// ── Dashboard campagne (Admin) ─────────────────
+// ── Campaign Dashboard (Admin) ─────────────────
 function CampaignDashboard({ campaign }) {
+  const { t } = useLang();
   const [data,    setData]    = useState(null);
   const [accounts,setAccounts]= useState([]);
   const [tab,     setTab]     = useState('global');
@@ -184,7 +211,7 @@ function CampaignDashboard({ campaign }) {
     }).finally(() => setLoading(false));
   }, [campaign.id]);
 
-  if (loading) return <div style={{ padding: 32, color: '#bbb' }}>Chargement…</div>;
+  if (loading) return <div style={{ padding: 32, color: '#bbb' }}>{t('loading')}</div>;
   if (!data)   return null;
 
   const g = data.global;
@@ -199,30 +226,29 @@ function CampaignDashboard({ campaign }) {
     return matchRisk && matchManager;
   });
 
-  // Liste des managers uniques pour le filtre
   const managerList = [...new Set(accounts.map(a => a.manager_nom).filter(Boolean))];
 
   return (
     <div style={{ padding: 24 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
         <div>
           <h2 style={{ fontSize:20, fontWeight:600, marginBottom:4 }}>{campaign.nom}</h2>
           <div style={{ fontSize:14, color:'#646464' }}>
-            Lancée le {campaign.date_lancement}
-            {campaign.date_echeance && ` · Échéance : ${campaign.date_echeance}`}
+            {t('camp.launched')} {campaign.date_lancement}
+            {campaign.date_echeance && ` · ${t('camp.echeance')} ${campaign.date_echeance}`}
             {campaign.description && ` · ${campaign.description}`}
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <button onClick={handleNotifyAll} disabled={notifyAllStatus === 'sending'}
             style={{ padding:'9px 16px', borderRadius:8, border:'1px solid rgba(232,76,46,.25)', background:'rgba(232,76,46,.06)', color:'var(--pwc-orange)', fontSize:13, fontWeight:500, cursor:'pointer', whiteSpace:'nowrap' }}>
-            {notifyAllStatus === 'sending' ? 'Envoi…' :
-             notifyAllStatus.startsWith('sent') ? `✓ ${notifyAllStatus.split(':')[1]} emails envoyés` :
-             notifyAllStatus === 'error' ? '✕ Erreur' : '✉ Notifier tous les managers'}
+            {notifyAllStatus === 'sending' ? t('sending') :
+             notifyAllStatus.startsWith('sent') ? `✓ ${notifyAllStatus.split(':')[1]} ${t('camp.emailsSent')}` :
+             notifyAllStatus === 'error' ? t('error') : t('camp.notifyAll')}
           </button>
           <button onClick={() => campaignAPI.export(campaign.id)}
             style={{ padding:'9px 16px', borderRadius:8, border:'1px solid #e2e2e2', background:'#fff', color:'#646464', fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
-            ⬇ Exporter
+            {t('camp.export')}
           </button>
         </div>
       </div>
@@ -230,16 +256,16 @@ function CampaignDashboard({ campaign }) {
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12, marginBottom:24 }}>
         {[
-          { label:'Total comptes',  val:g.total,        color:'#2d2d2d', pct: null },
-          { label:'Orphelins',      val:g.orphan_app+g.orphan_ad, color:'#d63b3b', pct:g.total },
-          { label:'Inactifs',       val:g.inactive,     color:'#c97a0a', pct:g.total },
-          { label:'Privilégiés',    val:g.privileged,   color:'#7c5cbf', pct:g.total },
-          { label:'Décisions prises',val:g.decided,     color:'#1a9e5f', pct:g.total },
+          { key:'camp.kpiTotal',   val:g.total,              color:'#2d2d2d', pct: null },
+          { key:'camp.kpiOrphan',  val:g.orphan_app+g.orphan_ad, color:'#d63b3b', pct:g.total },
+          { key:'camp.kpiInactive',val:g.inactive,           color:'#c97a0a', pct:g.total },
+          { key:'camp.kpiPriv',    val:g.privileged,         color:'#7c5cbf', pct:g.total },
+          { key:'camp.kpiDecided', val:g.decided,            color:'#1a9e5f', pct:g.total },
         ].map(k => (
-          <div key={k.label} style={{ background:'#fff', border:'1px solid #e2e2e2', borderRadius:10, padding:'16px 18px' }}>
-            <div style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>{k.label}</div>
+          <div key={k.key} style={{ background:'#fff', border:'1px solid #e2e2e2', borderRadius:10, padding:'16px 18px' }}>
+            <div style={{ fontSize:10, color:'#aaa', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>{t(k.key)}</div>
             <div style={{ fontSize:28, fontWeight:700, color:k.color, lineHeight:1 }}>{k.val}</div>
-            {k.pct > 0 && <div style={{ fontSize:11, color:'#aaa', marginTop:4 }}>{Math.round(k.val/k.pct*100)}% du total</div>}
+            {k.pct > 0 && <div style={{ fontSize:11, color:'#aaa', marginTop:4 }}>{Math.round(k.val/k.pct*100)}% {t('camp.ofTotal')}</div>}
             <div style={{ height:3, background:'#f0f0f0', borderRadius:2, marginTop:10, overflow:'hidden' }}>
               <div style={{ height:'100%', background:k.color, borderRadius:2, width: k.pct > 0 ? `${Math.round(k.val/k.pct*100)}%` : '100%', opacity:.6 }}/>
             </div>
@@ -247,46 +273,56 @@ function CampaignDashboard({ campaign }) {
         ))}
       </div>
 
-      {/* Décisions summary */}
+      {/* Decisions summary */}
       <div style={{ display:'flex', gap:10, marginBottom:24 }}>
         {[
-          { label:'Maintenir',   val:g.maintenir,  color:'#1a9e5f', bg:'rgba(26,158,95,.08)'  },
-          { label:'Révoquer',    val:g.revoquer,   color:'#d63b3b', bg:'rgba(214,59,59,.08)'  },
-          { label:'Investiguer', val:g.investiguer,color:'#c97a0a', bg:'rgba(201,122,10,.08)' },
-          { label:'En attente',  val:g.total-g.decided, color:'#aaa', bg:'#f5f5f5' },
+          { key:'camp.decMaintenir',   val:g.maintenir,       color:'#1a9e5f', bg:'rgba(26,158,95,.08)'  },
+          { key:'camp.decRevoquer',    val:g.revoquer,        color:'#d63b3b', bg:'rgba(214,59,59,.08)'  },
+          { key:'camp.decInvestiguer', val:g.investiguer,     color:'#c97a0a', bg:'rgba(201,122,10,.08)' },
+          { key:'camp.decPending',     val:g.total-g.decided, color:'#aaa',    bg:'#f5f5f5' },
         ].map(d => (
-          <div key={d.label} style={{ flex:1, background:d.bg, borderRadius:10, padding:'12px 16px', border:`1px solid ${d.color}22` }}>
+          <div key={d.key} style={{ flex:1, background:d.bg, borderRadius:10, padding:'12px 16px', border:`1px solid ${d.color}22` }}>
             <div style={{ fontSize:22, fontWeight:700, color:d.color }}>{d.val}</div>
-            <div style={{ fontSize:11, color:d.color, marginTop:3 }}>{d.label}</div>
+            <div style={{ fontSize:11, color:d.color, marginTop:3 }}>{t(d.key)}</div>
           </div>
         ))}
       </div>
 
-      {/* Tabs : Comptes / Par direction / Par manager */}
+      {/* Tabs */}
       <div style={{ display:'flex', gap:4, marginBottom:16, borderBottom:'1px solid #e2e2e2' }}>
-        {[['accounts','Comptes'],['directions','Par direction'],['managers','Par manager']].map(([key,label]) => (
+        {[
+          ['accounts',   t('camp.tabAccounts')],
+          ['directions', t('camp.tabDirections')],
+          ['managers',   t('camp.tabManagers')],
+        ].map(([key,label]) => (
           <button key={key} onClick={() => setTab(key)}
-            style={{ padding:'8px 16px', border:'none', background:'transparent', fontSize:13, cursor:'pointer', fontWeight: tab===key ? 600:'400', color: tab===key ? 'var(--pwc-orange)' : '#646464', borderBottom: tab===key ? '2px solid var(--pwc-orange)' : '2px solid transparent', marginBottom:-1 }}>
+            style={{ padding:'8px 16px', border:'none', background:'transparent', fontSize:13, cursor:'pointer', fontWeight: tab===key ? 600 : 400, color: tab===key ? 'var(--pwc-orange)' : '#646464', borderBottom: tab===key ? '2px solid var(--pwc-orange)' : '2px solid transparent', marginBottom:-1 }}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* Tab: Comptes */}
+      {/* Tab: Accounts */}
       {tab === 'accounts' && (
         <>
           <div style={{ display:'flex', gap:6, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
-            {[['all','Tous'],['pending','En attente'],['orphan','Orphelins'],['inactive','Inactifs'],['priv','Privilégiés']].map(([key,label]) => (
+            {[
+              ['all',      t('camp.filterAll')],
+              ['pending',  t('camp.filterPending')],
+              ['orphan',   t('camp.filterOrphan')],
+              ['inactive', t('camp.filterInactive')],
+              ['priv',     t('camp.filterPriv')],
+            ].map(([key,label]) => (
               <button key={key} onClick={() => setFilter(key)}
                 style={{ padding:'6px 14px', borderRadius:8, border:'1px solid #e2e2e2', background: filter===key ? 'var(--pwc-orange)':'#fff', color: filter===key ? '#fff':'#646464', fontSize:13, cursor:'pointer' }}>
                 {label}
               </button>
             ))}
             <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontSize:12, color:'#aaa' }}>Manager :</span>
+              <span style={{ fontSize:12, color:'#aaa' }}>{t('camp.manager')}</span>
               <select value={managerFilter} onChange={e => setManagerFilter(e.target.value)}
                 style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #e2e2e2', background:'#fff', color:'#2d2d2d', fontSize:13, cursor:'pointer', outline:'none' }}>
-                <option value="all">Tous</option>
+                <option value="all">{t('all')}</option>
                 {managerList.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
@@ -294,13 +330,22 @@ function CampaignDashboard({ campaign }) {
           <div style={{ background:'#fff', border:'1px solid #e2e2e2', borderRadius:12, overflow:'hidden' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
-                <tr>{['Utilisateur','Direction','Profil','Dernier logon','Risque','Manager','Décision'].map(h => (
+                <tr>{[
+                  t('camp.colUser'), t('camp.colDirection'), t('camp.colProfile'),
+                  t('camp.colLogon'), t('camp.colRisk'), t('camp.colManager'),
+                  t('camp.colDecision'), t('camp.colMotif'),
+                ].map(h => (
                   <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:500, color:'#999', textTransform:'uppercase', letterSpacing:'.4px', borderBottom:'1px solid #e2e2e2', whiteSpace:'nowrap' }}>{h}</th>
                 ))}</tr>
               </thead>
               <tbody>
-                {filteredAccounts.map(a => (
-                  <tr key={a.id} style={{ borderBottom:'1px solid #f5f5f5' }}>
+                {filteredAccounts.map(a => {
+                  const rowBg = a.decision === 'Maintenir'   ? 'rgba(26,158,95,.04)'
+                              : a.decision === 'Révoquer'    ? 'rgba(214,59,59,.04)'
+                              : a.decision === 'Investiguer' ? 'rgba(201,122,10,.04)'
+                              : 'transparent';
+                  return (
+                  <tr key={a.id} style={{ borderBottom:'1px solid #f5f5f5', background: rowBg }}>
                     <td style={{ padding:'11px 14px' }}>
                       <div style={{ fontWeight:500, fontSize:13 }}>{a.nom_complet}</div>
                       <div style={{ fontSize:11, color:'#aaa', fontFamily:'monospace' }}>{a.account_id}</div>
@@ -311,23 +356,30 @@ function CampaignDashboard({ campaign }) {
                       {a.profil_description && <div style={{ color:'#aaa', fontSize:11, marginTop:1 }}>{a.profil_description}</div>}
                     </td>
                     <td style={{ padding:'11px 14px', fontSize:12, fontFamily:'monospace', color:a.last_logon_ad==='Jamais'?'#d63b3b':'#646464' }}>{a.last_logon_ad||'—'}</td>
-                    <td style={{ padding:'11px 14px' }}>{riskBadge(a)}</td>
+                    <td style={{ padding:'11px 14px' }}>{riskBadge(a, t)}</td>
                     <td style={{ padding:'11px 14px', fontSize:12, color:'#646464' }}>{a.manager_nom||'—'}</td>
-                    <td style={{ padding:'11px 14px' }}>{decisionChip(a.decision)}</td>
+                    <td style={{ padding:'11px 14px' }}>{decisionChip(a.decision, t)}</td>
+                    <td style={{ padding:'11px 14px', fontSize:12, color:'#646464', fontStyle: a.motif ? 'italic' : 'normal', maxWidth:200 }}>
+                      {a.motif || '—'}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </>
       )}
 
-      {/* Tab: Par direction */}
+      {/* Tab: By department */}
       {tab === 'directions' && (
         <div style={{ background:'#fff', border:'1px solid #e2e2e2', borderRadius:12, overflow:'hidden' }}>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
-              <tr>{['Direction','Total','Risques','Traités','Maintenir','Révoquer','Taux'].map(h => (
+              <tr>{[
+                t('camp.dirColDirection'), t('camp.dirColTotal'), t('camp.dirColRisks'),
+                t('camp.dirColTreated'), t('camp.dirColMaintenir'), t('camp.dirColRevoquer'), t('camp.dirColRate'),
+              ].map(h => (
                 <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:500, color:'#999', textTransform:'uppercase', letterSpacing:'.4px', borderBottom:'1px solid #e2e2e2' }}>{h}</th>
               ))}</tr>
             </thead>
@@ -355,12 +407,15 @@ function CampaignDashboard({ campaign }) {
         </div>
       )}
 
-      {/* Tab: Par manager */}
+      {/* Tab: By manager */}
       {tab === 'managers' && (
         <div style={{ background:'#fff', border:'1px solid #e2e2e2', borderRadius:12, overflow:'hidden' }}>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
-              <tr>{['Manager','Email PwC','Comptes','Risques','Traités','Progression','Action'].map(h => (
+              <tr>{[
+                t('camp.mgrColManager'), t('camp.mgrColEmail'), t('camp.mgrColAccounts'),
+                t('camp.mgrColRisks'), t('camp.mgrColTreated'), t('camp.mgrColProgress'), t('camp.mgrColAction'),
+              ].map(h => (
                 <th key={h} style={{ padding:'12px 14px', textAlign:'left', fontSize:12, fontWeight:500, color:'#999', textTransform:'uppercase', letterSpacing:'.4px', borderBottom:'1px solid #e2e2e2' }}>{h}</th>
               ))}</tr>
             </thead>
@@ -382,11 +437,7 @@ function CampaignDashboard({ campaign }) {
                   </td>
                   <td style={{ padding:'13px 14px' }}>
                     {m.email && m.email !== '—' && (
-                      <EmailButton
-                        campaignId={campaign.id}
-                        managerEmail={m.email}
-                        managerNom={m.manager}
-                      />
+                      <EmailButton campaignId={campaign.id} managerEmail={m.email} managerNom={m.manager} />
                     )}
                   </td>
                 </tr>
@@ -399,26 +450,9 @@ function CampaignDashboard({ campaign }) {
   );
 }
 
-function riskBadge(a) {
-  const s = { display:'inline-flex', padding:'3px 8px', borderRadius:20, fontSize:11, fontWeight:500 };
-  if (a.orphelin_app) return <span style={{ ...s, background:'rgba(214,59,59,.1)',  color:'#d63b3b' }}>Orphelin App</span>;
-  if (a.orphelin_ad)  return <span style={{ ...s, background:'rgba(201,122,10,.1)', color:'#c97a0a' }}>Orphelin AD</span>;
-  if (a.inactif && a.privilegie) return <span style={{ ...s, background:'rgba(214,59,59,.15)', color:'#d63b3b' }}>Multi-risque</span>;
-  if (a.inactif)      return <span style={{ ...s, background:'rgba(201,122,10,.1)', color:'#c97a0a' }}>Inactif</span>;
-  if (a.privilegie)   return <span style={{ ...s, background:'rgba(124,92,191,.1)', color:'#7c5cbf' }}>Privilégié</span>;
-  return <span style={{ ...s, background:'rgba(26,158,95,.1)', color:'#1a9e5f' }}>OK</span>;
-}
-
-function decisionChip(d) {
-  if (!d) return <span style={{ fontSize:12, color:'#bbb' }}>—</span>;
-  const map = { 'Maintenir':{ color:'#1a9e5f', bg:'rgba(26,158,95,.1)' }, 'Révoquer':{ color:'#d63b3b', bg:'rgba(214,59,59,.1)' }, 'Investiguer':{ color:'#c97a0a', bg:'rgba(201,122,10,.1)' } };
-  const st = map[d] || { color:'#646464', bg:'#f0f0f0' };
-  return <span style={{ display:'inline-flex', padding:'3px 8px', borderRadius:20, fontSize:11, fontWeight:500, background:st.bg, color:st.color }}>{d}</span>;
-}
-
-// ── Main Campaigns Page ───────────────────────
 // ── Edit Campaign Modal ───────────────────────
 function EditCampaignModal({ campaign, onClose, onUpdated }) {
+  const { t } = useLang();
   const [form, setForm] = useState({
     nom: campaign.nom, description: campaign.description || '',
     dateEcheance: campaign.date_echeance || '',
@@ -436,7 +470,7 @@ function EditCampaignModal({ campaign, onClose, onUpdated }) {
     setLoading(true); setError('');
     try {
       if (reupload) {
-        if (!fileApp || !fileAD) return setError('Les deux fichiers sont requis pour re-analyser');
+        if (!fileApp || !fileAD) return setError(t('camp.bothFilesRequired'));
         setProgress(30);
         const fd = new FormData();
         Object.entries(form).forEach(([k, v]) => fd.append(k, v));
@@ -465,7 +499,7 @@ function EditCampaignModal({ campaign, onClose, onUpdated }) {
       }
       onClose();
     } catch (err) {
-      setError(err.message || 'Erreur');
+      setError(err.message || t('error'));
       setLoading(false); setProgress(0);
     }
   };
@@ -474,44 +508,43 @@ function EditCampaignModal({ campaign, onClose, onUpdated }) {
     <div style={Mo.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={Mo.modal}>
         <div style={Mo.header}>
-          <h2 style={Mo.title}>Modifier la campagne</h2>
+          <h2 style={Mo.title}>{t('camp.editTitle')}</h2>
           <button onClick={onClose} style={Mo.closeBtn}>✕</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Nom</label>
+            <label className="form-label">{t('camp.name').replace(' *','')}</label>
             <input className="form-input" value={form.nom} onChange={e => set('nom', e.target.value)} required />
           </div>
           <div className="form-group">
-            <label className="form-label">Description</label>
+            <label className="form-label">{t('camp.description')}</label>
             <textarea className="form-input" rows={2} value={form.description}
               onChange={e => set('description', e.target.value)} style={{ resize:'vertical' }} />
           </div>
           <div className="form-group">
-            <label className="form-label">Date d'échéance</label>
+            <label className="form-label">{t('camp.deadline')}</label>
             <input className="form-input" type="date" value={form.dateEcheance}
               onChange={e => set('dateEcheance', e.target.value)} />
           </div>
 
-          {/* Toggle re-upload */}
           <div style={{ background:'#f9f9f9', border:'1px solid #e2e2e2', borderRadius:10, padding:'14px 16px', marginBottom:16 }}>
             <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:14 }}>
               <input type="checkbox" checked={reupload} onChange={e => setReupload(e.target.checked)}
                 style={{ width:16, height:16 }} />
-              Corriger les fichiers Excel (re-analyser avec de nouveaux fichiers)
+              {t('camp.reuploadCheckbox')}
             </label>
             {reupload && (
               <div style={{ marginTop:14 }}>
                 <div style={{ fontSize:12, color:'#d63b3b', marginBottom:10 }}>
-                  ⚠ Attention : toutes les décisions existantes seront effacées.
+                  {t('camp.reuploadWarning')}
                 </div>
                 <label style={{ ...Mo.uploadZone, ...(fileApp ? Mo.uploadDone : {}), marginBottom:10 }}>
                   <input type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={e => setFileApp(e.target.files[0])} />
-                  <span>{fileApp ? '✓ ' + fileApp.name : '📊 Nouvel extract Application'}</span>
+                  <span>{fileApp ? '✓ ' + fileApp.name : `📊 ${t('camp.newAppExtract')}`}</span>
                 </label>
                 <label style={{ ...Mo.uploadZone, ...(fileAD ? Mo.uploadDone : {}) }}>
                   <input type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={e => setFileAD(e.target.files[0])} />
-                  <span>{fileAD ? '✓ ' + fileAD.name : '🗂 Nouvel extract AD'}</span>
+                  <span>{fileAD ? '✓ ' + fileAD.name : `🗂 ${t('camp.newADExtract')}`}</span>
                 </label>
               </div>
             )}
@@ -525,9 +558,9 @@ function EditCampaignModal({ campaign, onClose, onUpdated }) {
           {error && <div className="form-error" style={{ marginBottom:12 }}>{error}</div>}
 
           <div style={{ display:'flex', gap:10 }}>
-            <button type="button" className="btn-secondary" onClick={onClose} style={{ flex:1 }}>Annuler</button>
+            <button type="button" className="btn-secondary" onClick={onClose} style={{ flex:1 }}>{t('cancel')}</button>
             <button type="submit" className="btn-primary" disabled={loading} style={{ flex:2 }}>
-              {loading ? 'Mise à jour…' : 'Enregistrer'}
+              {loading ? t('camp.updating') : t('save')}
             </button>
           </div>
         </form>
@@ -536,11 +569,13 @@ function EditCampaignModal({ campaign, onClose, onUpdated }) {
   );
 }
 
+// ── Main Campaigns Page ───────────────────────
 export default function CampaignsPage() {
+  const { t } = useLang();
   const [campaigns,  setCampaigns]  = useState([]);
   const [selected,   setSelected]   = useState(null);
   const [showModal,  setShowModal]  = useState(false);
-  const [editModal,  setEditModal]  = useState(null);  // campaign being edited
+  const [editModal,  setEditModal]  = useState(null);
   const [loading,    setLoading]    = useState(true);
 
   const load = () => {
@@ -575,7 +610,7 @@ export default function CampaignsPage() {
 
   const handleDelete = async (c, e) => {
     e.stopPropagation();
-    if (!window.confirm(`Supprimer "${c.nom}" ? Cette action est irréversible.`)) return;
+    if (!window.confirm(`${t('camp.editTitle').replace('Edit','Delete').replace('Modifier','Supprimer')} "${c.nom}" ?`)) return;
     await fetch(`/api/campaigns/${c.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -587,24 +622,24 @@ export default function CampaignsPage() {
   return (
     <div style={{ display:'flex', height:'100%', overflow:'hidden' }}>
 
-      {/* Liste campagnes */}
+      {/* Campaign list */}
       <div style={{ width:290, borderRight:'1px solid #e2e2e2', background:'#fff', display:'flex', flexDirection:'column', flexShrink:0 }}>
         <div style={{ padding:'14px 16px', borderBottom:'1px solid #f0f0f0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <span style={{ fontSize:11, fontWeight:600, color:'#aaa', textTransform:'uppercase', letterSpacing:'.6px' }}>
-            Campagnes ({campaigns.length})
+            {t('admin.campaigns')} ({campaigns.length})
           </span>
           <button onClick={() => setShowModal(true)}
             style={{ background:'var(--pwc-orange)', color:'#fff', border:'none', borderRadius:7, padding:'5px 12px', fontSize:12, fontWeight:500, cursor:'pointer' }}>
-            + Nouvelle
+            + {t('camp.newCampaign')}
           </button>
         </div>
 
         <div style={{ flex:1, overflow:'auto' }}>
           {loading
-            ? <div style={{ padding:20, color:'#bbb', fontSize:13 }}>Chargement…</div>
+            ? <div style={{ padding:20, color:'#bbb', fontSize:13 }}>{t('loading')}</div>
             : campaigns.length === 0
               ? <div style={{ padding:20, color:'#bbb', fontSize:13, lineHeight:1.6 }}>
-                  Aucune campagne.<br/>Créez-en une avec le bouton +
+                  {t('camp.noCampaigns').split('\n').map((l,i) => <span key={i}>{l}{i===0&&<br/>}</span>)}
                 </div>
               : campaigns.map(c => (
                 <div key={c.id}
@@ -613,16 +648,14 @@ export default function CampaignsPage() {
 
                   <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:2 }}>
                     <div style={{ fontWeight:500, fontSize:13, flex:1, marginRight:6 }}>{c.nom}</div>
-                    {/* Actions rapides */}
-                    <div style={{ display:'flex', gap:4, opacity: selected?.id===c.id ? 1 : 0, transition:'opacity .15s' }}
-                      className="camp-actions">
-                      <button title="Modifier" onClick={e => { e.stopPropagation(); setEditModal(c); }}
+                    <div style={{ display:'flex', gap:4, opacity: selected?.id===c.id ? 1 : 0, transition:'opacity .15s' }}>
+                      <button title={t('camp.edit')} onClick={e => { e.stopPropagation(); setEditModal(c); }}
                         style={Btn.icon}>✎</button>
-                      <button title={c.statut === 'archivee' ? 'Désarchiver' : 'Archiver'}
+                      <button title={c.statut === 'archivee' ? t('camp.unarchive') : t('camp.archive')}
                         onClick={e => handleArchive(c, e)} style={Btn.icon}>
                         {c.statut === 'archivee' ? '↩' : '🗄'}
                       </button>
-                      <button title="Supprimer" onClick={e => handleDelete(c, e)}
+                      <button title={t('camp.delete')} onClick={e => handleDelete(c, e)}
                         style={{ ...Btn.icon, color:'#d63b3b' }}>✕</button>
                     </div>
                   </div>
@@ -630,14 +663,14 @@ export default function CampaignsPage() {
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
                     <span style={{ fontSize:11, color:'#aaa' }}>{c.date_lancement}</span>
                     {c.statut === 'archivee' && (
-                      <span style={{ fontSize:10, background:'#f0f0f0', color:'#aaa', padding:'1px 6px', borderRadius:10 }}>Archivée</span>
+                      <span style={{ fontSize:10, background:'#f0f0f0', color:'#aaa', padding:'1px 6px', borderRadius:10 }}>{t('camp.archived')}</span>
                     )}
                   </div>
                   <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:5 }}>
-                    <span style={{ fontSize:11, color:'#646464' }}>{c.decided}/{c.total} traités</span>
+                    <span style={{ fontSize:11, color:'#646464' }}>{c.decided}/{c.total} {t('camp.treated')}</span>
                     {c.risk_count > 0 && (
                       <span style={{ fontSize:10, background:'rgba(214,59,59,.1)', color:'#d63b3b', padding:'1px 6px', borderRadius:10 }}>
-                        {c.risk_count} risques
+                        {c.risk_count} {t('camp.risks')}
                       </span>
                     )}
                   </div>
@@ -650,15 +683,15 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      {/* Détail */}
+      {/* Detail */}
       <div style={{ flex:1, overflow:'auto' }}>
         {!selected
           ? <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', color:'#bbb' }}>
               <div style={{ fontSize:40, marginBottom:16 }}>📋</div>
-              <div style={{ fontWeight:600, marginBottom:8 }}>Sélectionnez une campagne</div>
-              <div style={{ fontSize:13, marginBottom:20 }}>ou créez-en une nouvelle</div>
+              <div style={{ fontWeight:600, marginBottom:8 }}>{t('camp.selectCampaign')}</div>
+              <div style={{ fontSize:13, marginBottom:20 }}>{t('camp.selectOrCreate')}</div>
               <button onClick={() => setShowModal(true)} className="btn-primary" style={{ width:'auto', padding:'10px 24px' }}>
-                + Nouvelle campagne
+                + {t('camp.newCampaign')}
               </button>
             </div>
           : <CampaignDashboard key={selected.id} campaign={selected} />
@@ -671,7 +704,7 @@ export default function CampaignsPage() {
   );
 }
 
-// ── Quick action button style ─────────────────
+// ── Styles ────────────────────────────────────
 const Btn = {
   icon: { background:'transparent', border:'1px solid #e2e2e2', borderRadius:5, width:22, height:22, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, cursor:'pointer', color:'#646464', padding:0 },
 };

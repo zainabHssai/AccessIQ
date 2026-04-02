@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../App';
 import { authAPI } from '../api';
+import { useLang, LangToggle } from '../i18n';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate  = useNavigate();
+  const { t }     = useLang();
 
   const [form,    setForm]    = useState({ email: '', password: '' });
   const [error,   setError]   = useState('');
@@ -17,11 +19,10 @@ export default function LoginPage() {
     try {
       const res = await authAPI.login(form.email, form.password);
       login(res.data.token, res.data.user);
-      // Redirection selon le rôle
       if (res.data.user.role === 'admin') navigate('/admin/dashboard');
       else navigate('/manager/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Erreur de connexion');
+      setError(err.response?.data?.error || t('login.submitting'));
     } finally {
       setLoading(false);
     }
@@ -39,14 +40,13 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 style={styles.headline}>
-            Gouvernance des identités,<br />simplifiée.
+            {t('login.headline').split('\n').map((line, i) => (
+              <span key={i}>{line}{i === 0 && <br />}</span>
+            ))}
           </h1>
-          <p style={styles.sub}>
-            Gérez vos campagnes de revue d'accès, détectez les comptes à risque
-            et pilotez les décisions de vos managers depuis une seule plateforme.
-          </p>
+          <p style={styles.sub}>{t('login.sub')}</p>
           <div style={styles.features}>
-            {['Détection des comptes orphelins & inactifs', 'Workflows d\'approbation multi-niveaux', 'Rapports de conformité exportables'].map(f => (
+            {[t('login.feature1'), t('login.feature2'), t('login.feature3')].map(f => (
               <div key={f} style={styles.featureItem}>
                 <span style={styles.featureDot}>●</span> {f}
               </div>
@@ -57,12 +57,15 @@ export default function LoginPage() {
 
       <div style={styles.right}>
         <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Connexion</h2>
-          <p style={styles.cardSub}>Entrez vos identifiants pour accéder à la plateforme</p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+            <LangToggle />
+          </div>
+          <h2 style={styles.cardTitle}>{t('login.title')}</h2>
+          <p style={styles.cardSub}>{t('login.subtitle')}</p>
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label">Adresse email</label>
+              <label className="form-label">{t('login.email')}</label>
               <input
                 className="form-input"
                 type="email" placeholder="vous@pwc.com"
@@ -72,7 +75,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Mot de passe</label>
+              <label className="form-label">{t('login.password')}</label>
               <input
                 className="form-input"
                 type="password" placeholder="••••••••"
@@ -85,16 +88,16 @@ export default function LoginPage() {
             {error && <div className="form-error" style={{ marginBottom: 14 }}>{error}</div>}
 
             <button className="btn-primary" type="submit" disabled={loading}>
-              {loading ? 'Connexion…' : 'Se connecter'}
+              {loading ? t('login.submitting') : t('login.submit')}
             </button>
           </form>
 
-          <div style={styles.divider}><span>ou</span></div>
+          <div style={styles.divider}><span>{t('login.or')}</span></div>
 
           <p style={styles.registerLink}>
-            Vous n'avez pas de compte ?{' '}
+            {t('login.noAccount')}{' '}
             <Link to="/register" style={{ color: 'var(--pwc-orange)', fontWeight: 500 }}>
-              Demander un accès
+              {t('login.requestAccess')}
             </Link>
           </p>
         </div>
@@ -143,9 +146,4 @@ const styles = {
     borderTop: '1px solid var(--border)', position: 'relative',
   },
   registerLink: { textAlign: 'center', fontSize: 13, color: 'var(--pwc-grey)', marginTop: 8 },
-  adminHint: {
-    marginTop: 20, padding: '10px 14px', borderRadius: 8,
-    background: 'var(--pwc-light)', fontSize: 11, color: '#bbb',
-    fontFamily: 'var(--mono)',
-  },
 };

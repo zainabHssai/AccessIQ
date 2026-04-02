@@ -48,9 +48,24 @@ export const campaignAPI = {
   accounts:     (id)                        => api.get(`/campaigns/${id}/accounts`),
   myAssigned:   ()                          => api.get('/campaigns/assigned'),
   myAccounts:   (id)                        => api.get(`/campaigns/${id}/accounts/mine`),
-  saveDecision: (campId, accId, decision)   => api.post(`/campaigns/${campId}/accounts/${accId}/decision`, { decision }),
-  export: (id) => { 
-    window.location.href = `https://accessiq-backend-production-55fa.up.railway.app/api/campaigns/${id}/export`; 
+  saveDecision: (campId, accId, decision, motif) => api.post(`/campaigns/${campId}/accounts/${accId}/decision`, { decision, motif }),
+  export: async (id) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/campaigns/${id}/export`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    a.download = match ? match[1] : `rapport_campagne_${id}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   },
 };
 

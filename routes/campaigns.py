@@ -161,8 +161,8 @@ def update_campaign(camp_id):
                     last_logon_ad      = str(row.get('Last Logon AD', '')),
                     groupes_sensibles  = str(row.get('Groupes sensibles', '')),
                     d_sortie           = str(row.get('D sortie société', '')),
-                    orphelin_app       = str(row.get('Orphelin (App)', 'NON')) == 'OUI',
-                    orphelin_ad        = str(row.get('Orphelin (AD)',  'NON')) == 'OUI',
+                    orphelin_app       = str(row.get('Orphelin',        'NON')) == 'OUI',
+                    orphelin_ad        = str(row.get('Non Provisionné', 'NON')) == 'OUI',
                     inactif            = str(row.get(inactif_col, 'NON')) == 'OUI',
                     privilegie         = str(row.get('Compte privilégié', 'NON')) == 'OUI',
                     score              = int(row.get('Score risque', 0)),
@@ -248,14 +248,18 @@ def save_decision(camp_id, acc_id):
     if not current: return jsonify({'error': 'Non authentifié'}), 401
     data     = request.json or {}
     decision = data.get('decision', '')
+    motif    = data.get('motif', '').strip()
     if decision and decision not in ('Maintenir', 'Révoquer', 'Investiguer'):
         return jsonify({'error': 'Décision invalide'}), 400
+    if decision and not motif:
+        return jsonify({'error': 'Le motif est obligatoire'}), 400
     acc = AccountReview.query.filter_by(id=acc_id, campaign_id=camp_id).first_or_404()
     acc.decision    = decision or None
+    acc.motif       = motif if decision else None
     acc.decision_by = current.id
     acc.decision_at = datetime.utcnow() if decision else None
     db.session.commit()
-    return jsonify({'ok': True, 'decision': acc.decision})
+    return jsonify({'ok': True, 'decision': acc.decision, 'motif': acc.motif})
 
 
 @campaigns_bp.route('', methods=['POST'])
@@ -333,8 +337,8 @@ def create_campaign():
                 last_logon_ad=str(row.get('Last Logon AD', '')),
                 groupes_sensibles=str(row.get('Groupes sensibles', '')),
                 d_sortie=str(row.get('D sortie société', '')),
-                orphelin_app=str(row.get('Orphelin (App)', 'NON')) == 'OUI',
-                orphelin_ad=str(row.get('Orphelin (AD)', 'NON')) == 'OUI',
+                orphelin_app=str(row.get('Orphelin',        'NON')) == 'OUI',
+                orphelin_ad=str(row.get('Non Provisionné',  'NON')) == 'OUI',
                 inactif=str(row.get(inactif_col, 'NON')) == 'OUI',
                 privilegie=str(row.get('Compte privilégié', 'NON')) == 'OUI',
                 score=int(row.get('Score risque', 0)),
@@ -378,12 +382,63 @@ def export_campaign(camp_id):
     current = get_current_user()
     if not current or current.role != 'admin':
         return jsonify({'error': 'Accès admin requis'}), 403
-    report_path = os.path.join(UPLOAD_FOLDER, f'camp_{camp_id}_rapport.xlsx')
-    if not os.path.exists(report_path):
-        return jsonify({'error': 'Rapport non disponible'}), 404
+
     camp = Campaign.query.get_or_404(camp_id)
-    return send_file(report_path, as_attachment=True,
-                     download_name=f'rapport_{camp.nom.replace(" ","_")}_{camp.date_lancement.strftime("%Y%m%d")}.xlsx')
+    accounts = AccountReview.query.filter_by(campaign_id=camp_id)\
+                .order_by(AccountReview.score.desc()).all()
+
+    inactif_col = f'Inactif (>{camp.inactivity_days}j)'
+    rows = []
+    for a in accounts:
+        rows.append({
+            'Account_ID':           a.account_id or '',
+            'User_ID':              a.user_id or '',
+            'Nom complet':          a.nom_complet or '',
+            'Profil App':           a.profil_app or '',
+            'Statut App':           a.statut_app or '',
+            'Direction':            a.direction or '',
+            'Job Title':            a.job_title or '',
+            'Matricule manager':    a.manager_matricule or '',
+            'Nom manager':          a.manager_nom or '',
+            'E-mail manager':       a.manager_email or '',
+            'Last Logon AD':        a.last_logon_ad or '',
+            'Groupes sensibles':    a.groupes_sensibles or '',
+            'D sortie société':     a.d_sortie or '',
+            'Orphelin':             'OUI' if a.orphelin_app else 'NON',
+            'Non Provisionné':      'OUI' if a.orphelin_ad  else 'NON',
+            inactif_col:            'OUI' if a.inactif      else 'NON',
+            'Compte privilégié':    'OUI' if a.privilegie   else 'NON',
+            'Score risque':         a.score,
+            'Libellé risque':       a.libelle_risque or '',
+            'Décision manager':     a.decision or '',
+            'Motif':                a.motif or '',
+            'Date décision':        a.decision_at.strftime('%Y-%m-%d') if a.decision_at else '',
+        })
+
+    df = pd.DataFrame(rows)
+
+    import io
+    from openpyxl import Workbook
+    from iam_access_review import style_report, add_stats_sheet
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Revue des accès')
+    buf.seek(0)
+
+    wb = load_workbook(buf)
+    style_report(wb['Revue des accès'], df, camp.inactivity_days)
+    add_stats_sheet(wb, df, camp.inactivity_days)
+
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+
+    filename = f'rapport_{camp.nom.replace(" ","_")}_{camp.date_lancement.strftime("%Y%m%d")}.xlsx'
+    return send_file(
+        out, as_attachment=True, download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 
 @campaigns_bp.route('/<int:camp_id>/dashboard', methods=['GET'])

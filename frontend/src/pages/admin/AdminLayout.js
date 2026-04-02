@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../App';
 import { authAPI } from '../../api';
+import { useLang, LangToggle } from '../../i18n';
 import CampaignsPage from './CampaignsPage';
 
 // ── Sidebar ──────────────────────────────────
 function Sidebar({ pendingCount }) {
   const { user, logout } = useAuth();
+  const { t } = useLang();
   const navigate = useNavigate();
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -33,10 +35,10 @@ function Sidebar({ pendingCount }) {
       </div>
 
       <div style={styles.navSection}>
-        <div style={styles.navLabel}>Navigation</div>
-        {navItem('/admin/dashboard', '◉', 'Tableau de bord')}
-        {navItem('/admin/campaigns', '📋', 'Campagnes')}
-        {navItem('/admin/users',     '👥', 'Utilisateurs', pendingCount)}
+        <div style={styles.navLabel}>{t('navigation')}</div>
+        {navItem('/admin/dashboard', '◉', t('admin.dashboard'))}
+        {navItem('/admin/campaigns', '📋', t('admin.campaigns'))}
+        {navItem('/admin/users',     '👥', t('admin.users'), pendingCount)}
       </div>
 
       <div style={styles.sidebarBottom}>
@@ -44,10 +46,13 @@ function Sidebar({ pendingCount }) {
           <div style={styles.userAvatar}>{user?.prenom?.[0]}{user?.nom?.[0]}</div>
           <div>
             <div style={styles.userName}>{user?.prenom} {user?.nom}</div>
-            <div style={styles.userRole}>Administrateur</div>
+            <div style={styles.userRole}>{t('admin.role')}</div>
           </div>
         </div>
-        <button onClick={handleLogout} style={styles.logoutBtn}>Déconnexion</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+          <LangToggle style={{ flex: 1 }} />
+        </div>
+        <button onClick={handleLogout} style={styles.logoutBtn}>{t('logout')}</button>
       </div>
     </aside>
   );
@@ -55,6 +60,7 @@ function Sidebar({ pendingCount }) {
 
 // ── Users Page ────────────────────────────────
 function UsersPage({ onPendingChange }) {
+  const { t } = useLang();
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('pending');
@@ -86,22 +92,22 @@ function UsersPage({ onPendingChange }) {
     <div style={styles.page}>
       <div style={styles.pageHeader}>
         <div>
-          <h1 style={styles.pageTitle}>Utilisateurs</h1>
-          <p style={styles.pageSub}>Gérez les comptes et validez les demandes d'accès</p>
+          <h1 style={styles.pageTitle}>{t('users.title')}</h1>
+          <p style={styles.pageSub}>{t('users.subtitle')}</p>
         </div>
       </div>
 
       {/* Tabs */}
       <div style={styles.tabs}>
         {[
-          { key: 'pending',  label: `En attente (${pending})` },
-          { key: 'active',   label: 'Actifs' },
-          { key: 'rejected', label: 'Refusés' },
-          { key: 'all',      label: 'Tous' },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ ...styles.tab, ...(tab === t.key ? styles.tabActive : {}) }}>
-            {t.label}
+          { key: 'pending',  label: `${t('users.tabPending')} (${pending})` },
+          { key: 'active',   label: t('users.tabActive') },
+          { key: 'rejected', label: t('users.tabRejected') },
+          { key: 'all',      label: t('users.tabAll') },
+        ].map(tab_ => (
+          <button key={tab_.key} onClick={() => setTab(tab_.key)}
+            style={{ ...styles.tab, ...(tab === tab_.key ? styles.tabActive : {}) }}>
+            {tab_.label}
           </button>
         ))}
       </div>
@@ -109,14 +115,14 @@ function UsersPage({ onPendingChange }) {
       {/* Table */}
       <div style={styles.tableWrap}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#bbb' }}>Chargement…</div>
+          <div style={{ padding: 40, textAlign: 'center', color: '#bbb' }}>{t('loading')}</div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#bbb' }}>Aucun utilisateur</div>
+          <div style={{ padding: 40, textAlign: 'center', color: '#bbb' }}>{t('users.noUsers')}</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Utilisateur', 'Email', 'Rôle', 'Statut', 'Date', 'Actions'].map(h => (
+                {[t('users.colUser'), t('users.colEmail'), t('users.colRole'), t('users.colStatus'), t('users.colDate'), t('users.colActions')].map(h => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
@@ -137,12 +143,12 @@ function UsersPage({ onPendingChange }) {
                   <td style={{ ...styles.td, color: '#646464', fontSize: 13 }}>{u.email}</td>
                   <td style={styles.td}>
                     <span className={`badge badge-${u.role === 'admin' ? 'admin' : 'manager'}`}>
-                      {u.role === 'admin' ? 'Admin' : u.titre === 'responsable_app' ? 'Resp. App' : 'Manager'}
+                      {u.role === 'admin' ? t('users.roleAdmin') : u.titre === 'responsable_app' ? t('users.roleRespo') : t('users.roleManager')}
                     </span>
                   </td>
                   <td style={styles.td}>
                     <span className={`badge badge-${u.statut}`}>
-                      {u.statut === 'pending' ? 'En attente' : u.statut === 'active' ? 'Actif' : 'Refusé'}
+                      {u.statut === 'pending' ? t('users.statusPending') : u.statut === 'active' ? t('users.statusActive') : t('users.statusRejected')}
                     </span>
                   </td>
                   <td style={{ ...styles.td, color: '#646464', fontSize: 12 }}>{u.created_at}</td>
@@ -150,10 +156,10 @@ function UsersPage({ onPendingChange }) {
                     {u.statut === 'pending' && (
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => handleAction(u.id, 'approve')} style={styles.btnApprove}>
-                          ✓ Approuver
+                          {t('users.approve')}
                         </button>
                         <button onClick={() => handleAction(u.id, 'reject')} style={styles.btnReject}>
-                          ✕ Refuser
+                          {t('users.reject')}
                         </button>
                       </div>
                     )}
@@ -170,18 +176,17 @@ function UsersPage({ onPendingChange }) {
 
 // ── Admin Layout ──────────────────────────────
 export default function AdminLayout() {
+  const { t } = useLang();
   const [pendingCount,    setPendingCount]    = useState(0);
   const [prevPending,     setPrevPending]     = useState(0);
   const [showNewUserNotif,setShowNewUserNotif]= useState(false);
 
-  // Polling toutes les 30s pour détecter nouveaux users en attente
   useEffect(() => {
     const check = async () => {
       try {
         const r = await authAPI.pending();
         const count = r.data.length;
         setPendingCount(count);
-        // Nouvelle demande arrivée depuis la dernière vérification ?
         if (count > prevPending && prevPending >= 0) {
           setShowNewUserNotif(true);
           setTimeout(() => setShowNewUserNotif(false), 6000);
@@ -197,12 +202,11 @@ export default function AdminLayout() {
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--pwc-light)', flexDirection:'column' }}>
 
-      {/* Bannière notification nouvelle demande */}
       {showNewUserNotif && (
         <div style={{ background:'rgba(232,76,46,.09)', borderBottom:'1px solid rgba(232,76,46,.18)', padding:'11px 24px', display:'flex', alignItems:'center', gap:12, animation:'fadeIn .3s ease', zIndex:100 }}>
           <span style={{ fontSize:17 }}>🔔</span>
-          <span style={{ fontSize:14, fontWeight:500, color:'var(--pwc-orange)' }}>Nouvelle demande de compte reçue</span>
-          <span style={{ fontSize:14, color:'#646464' }}>— Un utilisateur attend votre validation.</span>
+          <span style={{ fontSize:14, fontWeight:500, color:'var(--pwc-orange)' }}>{t('admin.newRequest')}</span>
+          <span style={{ fontSize:14, color:'#646464' }}>{t('admin.newRequestSub')}</span>
           <button onClick={() => setShowNewUserNotif(false)}
             style={{ marginLeft:'auto', background:'transparent', border:'none', color:'#aaa', cursor:'pointer', fontSize:16 }}>✕</button>
         </div>
