@@ -18,7 +18,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     if (form.password !== form.confirm) return setError(t('reg.pwMismatch'));
-    if (form.password.length < 8) return setError(t('reg.pwTooShort'));
+    if (form.password.length < 12) return setError(t('reg.pwTooShort'));
     setLoading(true);
     try {
       await authAPI.register({
@@ -96,7 +96,7 @@ export default function RegisterPage() {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">{t('reg.password')}</label>
-              <input className="form-input" type="password" placeholder="Min. 8"
+              <input className="form-input" type="password" placeholder="Min. 12"
                 value={form.password} onChange={e => set('password', e.target.value)} required />
             </div>
             <div className="form-group">
@@ -105,6 +105,28 @@ export default function RegisterPage() {
                 value={form.confirm} onChange={e => set('confirm', e.target.value)} required />
             </div>
           </div>
+
+          {/* Live password checklist */}
+          {form.password.length > 0 && (() => {
+            const pw = form.password;
+            const checks = [
+              { ok: pw.length >= 12,        label: t('reg.pwRule12') },
+              { ok: /[A-Z]/.test(pw),       label: t('reg.pwRuleUpper') },
+              { ok: /[a-z]/.test(pw),       label: t('reg.pwRuleLower') },
+              { ok: /\d/.test(pw),          label: t('reg.pwRuleDigit') },
+              { ok: /[^A-Za-z0-9]/.test(pw),label: t('reg.pwRuleSpecial') },
+            ];
+            return (
+              <div style={styles.pwChecklist}>
+                {checks.map(c => (
+                  <div key={c.label} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12 }}>
+                    <span style={{ color: c.ok ? '#1a9e5f' : '#bbb', fontSize:13 }}>{c.ok ? '✓' : '○'}</span>
+                    <span style={{ color: c.ok ? '#1a9e5f' : '#888' }}>{c.label}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {error && <div className="form-error" style={{ marginBottom: 14 }}>{error}</div>}
 
@@ -158,6 +180,11 @@ const styles = {
     display: 'flex', gap: 8, alignItems: 'flex-start',
   },
   loginLink: { textAlign: 'center', fontSize: 13, color: 'var(--pwc-grey)', marginTop: 20 },
+  pwChecklist: {
+    display: 'flex', flexDirection: 'column', gap: 4,
+    background: '#fafafa', border: '1px solid #e2e2e2',
+    borderRadius: 8, padding: '10px 12px', marginTop: 4,
+  },
   successIcon: {
     width: 56, height: 56, borderRadius: '50%',
     background: 'rgba(26,158,95,.12)', color: 'var(--green)',

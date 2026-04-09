@@ -241,3 +241,19 @@ class AccountReview(db.Model):
             'motif':             self.motif,
             'decision_at':       self.decision_at.strftime('%d/%m/%Y %H:%M') if self.decision_at else None,
         }
+
+
+# ─────────────────────────────────────────────
+# TABLE : motif_configs
+# Justifications configurées par l'admin
+# pour la décision "Maintenir"
+# ─────────────────────────────────────────────
+class MotifConfig(db.Model):
+    __tablename__ = 'motif_configs'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    label      = db.Column(db.String(200), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {'id': self.id, 'label': self.label}

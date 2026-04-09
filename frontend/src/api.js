@@ -80,3 +80,9 @@ export const profileAPI = {
   update:       (data)    => api.put('/auth/profile', data),
   updateEmail:  (email_ad)=> api.put('/auth/profile', { email_ad }),
 };
+
+export const motifAPI = {
+  list:   ()      => api.get('/motifs'),
+  create: (label) => api.post('/motifs', { label }),
+  delete: (id)    => api.delete(`/motifs/${id}`),
+};

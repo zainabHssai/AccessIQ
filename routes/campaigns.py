@@ -251,11 +251,11 @@ def save_decision(camp_id, acc_id):
     motif    = data.get('motif', '').strip()
     if decision and decision not in ('Maintenir', 'Révoquer', 'Investiguer'):
         return jsonify({'error': 'Décision invalide'}), 400
-    if decision and not motif:
-        return jsonify({'error': 'Le motif est obligatoire'}), 400
+    if decision == 'Maintenir' and not motif:
+        return jsonify({'error': 'Le motif est obligatoire pour Maintenir'}), 400
     acc = AccountReview.query.filter_by(id=acc_id, campaign_id=camp_id).first_or_404()
     acc.decision    = decision or None
-    acc.motif       = motif if decision else None
+    acc.motif       = motif if decision == 'Maintenir' else None
     acc.decision_by = current.id
     acc.decision_at = datetime.utcnow() if decision else None
     db.session.commit()

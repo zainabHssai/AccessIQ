@@ -25,14 +25,17 @@ def create_app():
     from routes.auth      import auth_bp
     from routes.campaigns import campaigns_bp
     from routes.mail      import mail_bp
+    from routes.motifs    import motifs_bp
     app.register_blueprint(auth_bp,      url_prefix='/api/auth')
     app.register_blueprint(campaigns_bp, url_prefix='/api/campaigns')
     app.register_blueprint(mail_bp,      url_prefix='/api/mail')
+    app.register_blueprint(motifs_bp,    url_prefix='/api/motifs')
 
     with app.app_context():
         db.create_all()
         _migrate_db()
         _seed_admin()
+        _seed_motifs()
 
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
@@ -59,6 +62,21 @@ def _migrate_db():
             db.session.commit()
         except Exception:
             db.session.rollback()
+
+
+def _seed_motifs():
+    from models import MotifConfig
+    if not MotifConfig.query.first():
+        defaults = [
+            'Compte nécessaire pour les activités en cours',
+            'Accès validé par le responsable métier',
+            'Compte de service en production',
+            'Exception approuvée par la direction',
+            'Compte temporaire autorisé jusqu\'à fin de mission',
+        ]
+        for label in defaults:
+            db.session.add(MotifConfig(label=label))
+        db.session.commit()
 
 
 def _seed_admin():

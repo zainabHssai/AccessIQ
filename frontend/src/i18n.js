@@ -60,7 +60,12 @@ const translations = {
     'reg.successText':  'Votre demande de compte a bien été transmise à l\'administrateur. Vous recevrez un email dès que votre compte sera activé.',
     'reg.backToLogin':  'Retour à la connexion',
     'reg.pwMismatch':   'Les mots de passe ne correspondent pas',
-    'reg.pwTooShort':   'Mot de passe trop court (min 8 caractères)',
+    'reg.pwTooShort':   'Mot de passe trop court (min 12 caractères)',
+    'reg.pwRule12':     'Au moins 12 caractères',
+    'reg.pwRuleUpper':  'Une lettre majuscule',
+    'reg.pwRuleLower':  'Une lettre minuscule',
+    'reg.pwRuleDigit':  'Un chiffre',
+    'reg.pwRuleSpecial':'Un caractère spécial',
 
     // ── Admin sidebar ──
     'admin.dashboard':  'Tableau de bord',
@@ -254,6 +259,17 @@ const translations = {
     'dec.revoke.useCase':     'L\'accès sera désactivé. Un ticket de révocation sera transmis au responsable IT.',
     'dec.investigate.useCase':'Un audit approfondi sera déclenché. Le compte sera suspendu en attente de clarification.',
     'dec.motifPlaceholder':   'Motif obligatoire…',
+    'dec.selectMotif':        'Sélectionner un motif…',
+
+    // ── Motifs admin ──
+    'admin.motifs':             'Motifs',
+    'motif.title':              'Motifs de décision',
+    'motif.subtitle':           'Configurez les justifications proposées aux managers pour la décision "Maintenir"',
+    'motif.addPlaceholder':     'Nouveau motif…',
+    'motif.add':                'Ajouter',
+    'motif.adding':             'Ajout…',
+    'motif.noMotifs':           'Aucun motif configuré.',
+    'motif.deleteConfirm':      'Supprimer ce motif ?',
   },
 
   en: {
@@ -308,7 +324,12 @@ const translations = {
     'reg.successText':  'Your account request has been sent to the administrator. You will receive an email once your account is activated.',
     'reg.backToLogin':  'Back to sign in',
     'reg.pwMismatch':   'Passwords do not match',
-    'reg.pwTooShort':   'Password too short (min 8 characters)',
+    'reg.pwTooShort':   'Password too short (min 12 characters)',
+    'reg.pwRule12':     'At least 12 characters',
+    'reg.pwRuleUpper':  'One uppercase letter',
+    'reg.pwRuleLower':  'One lowercase letter',
+    'reg.pwRuleDigit':  'One digit',
+    'reg.pwRuleSpecial':'One special character',
 
     // ── Admin sidebar ──
     'admin.dashboard':  'Dashboard',
@@ -502,6 +523,17 @@ const translations = {
     'dec.revoke.useCase':     'Access will be disabled. A revocation ticket will be sent to the IT owner.',
     'dec.investigate.useCase':'An in-depth audit will be triggered. The account will be suspended pending clarification.',
     'dec.motifPlaceholder':   'Reason required…',
+    'dec.selectMotif':        'Select a reason…',
+
+    // ── Motifs admin ──
+    'admin.motifs':             'Motifs',
+    'motif.title':              'Decision motifs',
+    'motif.subtitle':           'Configure the justifications shown to managers for the "Maintain" decision',
+    'motif.addPlaceholder':     'New motif…',
+    'motif.add':                'Add',
+    'motif.adding':             'Adding…',
+    'motif.noMotifs':           'No motifs configured.',
+    'motif.deleteConfirm':      'Delete this motif?',
   },
 };
 

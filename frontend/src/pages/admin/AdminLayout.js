@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../App';
-import { authAPI } from '../../api';
+import { authAPI, motifAPI } from '../../api';
 import { useLang, LangToggle } from '../../i18n';
 import CampaignsPage from './CampaignsPage';
 
@@ -39,6 +39,7 @@ function Sidebar({ pendingCount }) {
         {navItem('/admin/dashboard', '◉', t('admin.dashboard'))}
         {navItem('/admin/campaigns', '📋', t('admin.campaigns'))}
         {navItem('/admin/users',     '👥', t('admin.users'), pendingCount)}
+        {navItem('/admin/motifs',    '🏷', t('admin.motifs'))}
       </div>
 
       <div style={styles.sidebarBottom}>
@@ -174,6 +175,95 @@ function UsersPage({ onPendingChange }) {
   );
 }
 
+// ── Motif Config Page ─────────────────────────
+function MotifConfigPage() {
+  const { t } = useLang();
+  const [motifs,  setMotifs]  = useState([]);
+  const [input,   setInput]   = useState('');
+  const [loading, setLoading] = useState(true);
+  const [adding,  setAdding]  = useState(false);
+  const [error,   setError]   = useState('');
+
+  const load = async () => {
+    try {
+      const r = await motifAPI.list();
+      setMotifs(r.data);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    setAdding(true); setError('');
+    try {
+      await motifAPI.create(input.trim());
+      setInput('');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('error'));
+    } finally { setAdding(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm(t('motif.deleteConfirm'))) return;
+    await motifAPI.delete(id);
+    setMotifs(prev => prev.filter(m => m.id !== id));
+  };
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.pageHeader}>
+        <div>
+          <h1 style={styles.pageTitle}>{t('motif.title')}</h1>
+          <p style={styles.pageSub}>{t('motif.subtitle')}</p>
+        </div>
+      </div>
+
+      {/* Add form */}
+      <form onSubmit={handleAdd} style={{ display:'flex', gap:8, marginBottom:20, maxWidth:520 }}>
+        <input
+          className="form-input"
+          placeholder={t('motif.addPlaceholder')}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          style={{ flex:1 }}
+        />
+        <button type="submit" className="btn-primary" disabled={adding || !input.trim()} style={{ whiteSpace:'nowrap' }}>
+          {adding ? t('motif.adding') : t('motif.add')}
+        </button>
+      </form>
+      {error && <div className="form-error" style={{ marginBottom:12 }}>{error}</div>}
+
+      {/* Motifs list */}
+      <div style={styles.tableWrap}>
+        {loading ? (
+          <div style={{ padding:32, textAlign:'center', color:'#bbb' }}>{t('loading')}</div>
+        ) : motifs.length === 0 ? (
+          <div style={{ padding:32, textAlign:'center', color:'#bbb' }}>{t('motif.noMotifs')}</div>
+        ) : (
+          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <tbody>
+              {motifs.map((m, i) => (
+                <tr key={m.id} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                  <td style={{ ...styles.td, fontWeight:400, fontSize:14 }}>{m.label}</td>
+                  <td style={{ ...styles.td, width:80, textAlign:'right' }}>
+                    <button onClick={() => handleDelete(m.id)}
+                      style={{ padding:'4px 10px', borderRadius:6, border:'none', background:'rgba(214,59,59,.1)', color:'#d63b3b', fontSize:12, fontWeight:500, cursor:'pointer' }}>
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Admin Layout ──────────────────────────────
 export default function AdminLayout() {
   const { t } = useLang();
@@ -219,6 +309,7 @@ export default function AdminLayout() {
             <Route path="dashboard" element={<CampaignsPage />} />
             <Route path="campaigns" element={<CampaignsPage />} />
             <Route path="users"     element={<UsersPage onPendingChange={setPendingCount} />} />
+            <Route path="motifs"    element={<MotifConfigPage />} />
           </Routes>
         </main>
       </div>

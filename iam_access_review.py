@@ -83,19 +83,19 @@ COLUMN_ALIASES = {
 REQUIRED_AD_COLS  = ["sAMAccountName", "memberOf", "Last Logon Date"]
 REQUIRED_APP_COLS = ["Account_ID"]
 
-# Couleurs rapport
+# Couleurs rapport — basées sur le score (plus le risque est élevé, plus c'est rouge)
 COLOR = {
-    "header_ad":        "1F3864",  # bleu foncé
-    "header_app":       "14375E",
-    "header_risk":      "7B0000",
-    "header_action":    "375623",
-    "orphan":           "F4CCCC",  # rouge/rose — Orphelin (App sans AD) — risque élevé
-    "non_provisionne":  "D9E8F5",  # bleu clair — Non Provisionné (AD sans App) — risque faible
-    "inactive":         "FFF2CC",  # jaune — inactif
-    "privileged":       "E2EFDA",  # vert clair — privilégié
-    "multi_risk":       "F9B8B8",  # rose foncé — plusieurs risques
-    "normal":           "FFFFFF",
-    "alt_row":          "F5F5F5",
+    "header_ad":     "1F3864",   # bleu foncé
+    "header_app":    "14375E",
+    "header_risk":   "7B0000",
+    "header_action": "375623",
+    # Couleurs par niveau de score
+    "score_0":       "F1F8E9",   # vert très clair — aucun risque
+    "score_1":       "FFF9C4",   # jaune clair — risque faible (1 facteur)
+    "score_2":       "FFE0B2",   # orange clair — risque moyen (2 facteurs)
+    "score_3plus":   "FFCDD2",   # rouge clair — risque élevé (≥3 facteurs)
+    "normal":        "FFFFFF",
+    "alt_row":       "F5F5F5",
 }
 
 
@@ -486,21 +486,13 @@ def style_report(ws, df, threshold_days):
         is_priv       = str(row.get("Compte privilégié", "NON")).upper() == "OUI"
         score         = int(row.get("Score risque", 0))
 
-        # Couleur de ligne
-        if score >= 2 and is_orphan_app:
-            row_fill = make_fill(COLOR["multi_risk"])
-        elif is_orphan_app:
-            row_fill = make_fill(COLOR["orphan"])
-        elif is_orphan_ad and score >= 2:
-            row_fill = make_fill(COLOR["inactive"])   # Non Provisionné + autre risque
-        elif is_orphan_ad:
-            row_fill = make_fill(COLOR["non_provisionne"])
-        elif is_inactive and is_priv:
-            row_fill = make_fill(COLOR["multi_risk"])
-        elif is_inactive:
-            row_fill = make_fill(COLOR["inactive"])
-        elif is_priv:
-            row_fill = make_fill(COLOR["privileged"])
+        # Couleur de ligne — purement basée sur le score (cohérence garantie)
+        if score >= 3:
+            row_fill = make_fill(COLOR["score_3plus"])   # rouge clair
+        elif score == 2:
+            row_fill = make_fill(COLOR["score_2"])       # orange clair
+        elif score == 1:
+            row_fill = make_fill(COLOR["score_1"])       # jaune clair
         else:
             row_fill = make_fill(COLOR["alt_row"] if r_idx % 2 else COLOR["normal"])
 

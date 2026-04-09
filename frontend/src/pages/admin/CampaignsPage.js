@@ -4,13 +4,18 @@ import { useLang } from '../../i18n';
 
 // ── Helpers ───────────────────────────────────
 function riskBadge(a, t) {
-  const s = { display:'inline-flex', padding:'3px 8px', borderRadius:20, fontSize:11, fontWeight:500 };
-  if (a.orphelin_app) return <span style={{ ...s, background:'rgba(214,59,59,.12)', color:'#d63b3b' }}>{t('risk.orphan')}</span>;
-  if (a.orphelin_ad)  return <span style={{ ...s, background:'rgba(30,100,200,.1)',  color:'#1a5fb4' }}>{t('risk.notProvisioned')}</span>;
-  if (a.inactif && a.privilegie) return <span style={{ ...s, background:'rgba(214,59,59,.15)', color:'#d63b3b' }}>{t('risk.multiRisk')}</span>;
-  if (a.inactif)      return <span style={{ ...s, background:'rgba(201,122,10,.1)',  color:'#c97a0a' }}>{t('risk.inactive')}</span>;
-  if (a.privilegie)   return <span style={{ ...s, background:'rgba(124,92,191,.1)',  color:'#7c5cbf' }}>{t('risk.privileged')}</span>;
-  return <span style={{ ...s, background:'rgba(26,158,95,.1)', color:'#1a9e5f' }}>{t('risk.ok')}</span>;
+  const s = { display:'inline-flex', padding:'3px 8px', borderRadius:20, fontSize:11, fontWeight:500, maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' };
+  const score = a.score ?? 0;
+  const parts = [];
+  if (a.orphelin_app) parts.push(t('risk.orphan'));
+  if (a.orphelin_ad)  parts.push(t('risk.notProvisioned'));
+  if (a.inactif)      parts.push(t('risk.inactive'));
+  if (a.privilegie)   parts.push(t('risk.privileged'));
+  if (parts.length === 0) return <span style={{ ...s, background:'rgba(26,158,95,.1)', color:'#1a9e5f' }}>{t('risk.ok')}</span>;
+  // Couleur basée sur le score: ≥2 = rouge, 1 = orange
+  const color = score >= 2 ? '#c0392b' : '#c97a0a';
+  const bg    = score >= 2 ? 'rgba(192,57,43,.12)' : 'rgba(201,122,10,.10)';
+  return <span style={{ ...s, background: bg, color }} title={parts.join(' + ')}>{parts.join(' + ')}</span>;
 }
 
 const DEC_LABELS = { 'Maintenir': 'dec.maintain', 'Révoquer': 'dec.revoke', 'Investiguer': 'dec.investigate' };
@@ -186,7 +191,7 @@ function CampaignDashboard({ campaign }) {
   const { t } = useLang();
   const [data,    setData]    = useState(null);
   const [accounts,setAccounts]= useState([]);
-  const [tab,     setTab]     = useState('global');
+  const [tab,     setTab]     = useState('accounts');
   const [filter,  setFilter]  = useState('all');
   const [managerFilter, setManagerFilter] = useState('all');
   const [notifyAllStatus, setNotifyAllStatus] = useState('idle');

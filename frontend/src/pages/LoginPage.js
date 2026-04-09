@@ -22,7 +22,7 @@ export default function LoginPage() {
       if (res.data.user.role === 'admin') navigate('/admin/dashboard');
       else navigate('/manager/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || t('login.submitting'));
+      setError(err.response?.data?.error || t('error'));
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../App';
-import { authAPI, campaignAPI, profileAPI } from '../../api';
+import { campaignAPI, profileAPI, motifAPI } from '../../api';
 
 // ── Sidebar ──────────────────────────────────
 function Sidebar() {
@@ -297,46 +297,45 @@ function decisionChip(d) {
 
 // ── Decision Buttons ──────────────────────────
 const DECISION_META = {
-  'Maintenir':   {
-    color: '#1a9e5f', bg: 'rgba(26,158,95,.12)',
-    useCase: 'Le compte sera conservé. Une justification sera archivée dans le rapport de conformité.',
-  },
-  'Révoquer':    {
-    color: '#d63b3b', bg: 'rgba(214,59,59,.12)',
-    useCase: 'L\'accès sera désactivé. Un ticket de révocation sera transmis au responsable IT.',
-  },
-  'Investiguer': {
-    color: '#c97a0a', bg: 'rgba(201,122,10,.12)',
-    useCase: 'Un audit approfondi sera déclenché. Le compte sera suspendu en attente de clarification.',
-  },
+  'Maintenir':   { color: '#1a9e5f', bg: 'rgba(26,158,95,.12)',  useCase: 'Le compte sera conservé. Une justification sera archivée dans le rapport de conformité.' },
+  'Révoquer':    { color: '#d63b3b', bg: 'rgba(214,59,59,.12)',  useCase: 'L\'accès sera désactivé. Un ticket de révocation sera transmis au responsable IT.' },
+  'Investiguer': { color: '#c97a0a', bg: 'rgba(201,122,10,.12)', useCase: 'Un audit approfondi sera déclenché. Le compte sera suspendu en attente de clarification.' },
 };
 
 function DecisionButtons({ value, onChange }) {
-  const [pending, setPending]   = useState(null);   // decision en cours de saisie
-  const [motifVal, setMotifVal] = useState('');
+  const [pending,   setPending]   = useState(null);
+  const [motifVal,  setMotifVal]  = useState('');
+  const [motifs,    setMotifs]    = useState([]);
+
+  useEffect(() => {
+    motifAPI.list().then(r => setMotifs(r.data)).catch(() => {});
+  }, []);
 
   const handleBtnClick = (key) => {
     if (value === key) {
-      // déjà sélectionné → annuler
       onChange('', '');
-      setPending(null);
+      return;
+    }
+    if (key === 'Maintenir') {
+      // Ouvre le panneau de sélection du motif
+      setPending('Maintenir');
       setMotifVal('');
     } else {
-      setPending(key);
-      setMotifVal('');
+      // Révoquer / Investiguer → sauvegarde immédiate sans motif
+      onChange(key, '');
     }
   };
 
   const handleConfirm = () => {
-    if (!motifVal.trim()) return;
-    onChange(pending, motifVal.trim());
+    if (!motifVal) return;
+    onChange('Maintenir', motifVal);
     setPending(null);
     setMotifVal('');
   };
 
   const handleCancel = () => { setPending(null); setMotifVal(''); };
 
-  const meta = pending ? DECISION_META[pending] : null;
+  const meta = DECISION_META['Maintenir'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -355,23 +354,22 @@ function DecisionButtons({ value, onChange }) {
         ))}
       </div>
 
-      {/* Panneau motif + use case */}
-      {pending && (
-        <div style={{ background: `${meta.bg}`, border: `1px solid ${meta.color}33`, borderRadius: 8, padding: '10px 12px', marginTop: 2 }}>
-          <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginBottom: 4 }}>
-            {pending} — {meta.useCase}
+      {/* Panneau motif (Maintenir uniquement) */}
+      {pending === 'Maintenir' && (
+        <div style={{ background: meta.bg, border: `1px solid ${meta.color}33`, borderRadius: 8, padding: '10px 12px', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginBottom: 6 }}>
+            Maintenir — {meta.useCase}
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input
-              autoFocus
+            <select
               value={motifVal}
               onChange={e => setMotifVal(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleConfirm(); if (e.key === 'Escape') handleCancel(); }}
-              placeholder="Motif obligatoire…"
-              style={{ flex: 1, padding: '5px 8px', borderRadius: 5, border: `1px solid ${meta.color}55`, fontSize: 12, outline: 'none' }}
-            />
-            <button onClick={handleConfirm} disabled={!motifVal.trim()}
-              style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: motifVal.trim() ? 'pointer' : 'not-allowed', background: meta.color, color: '#fff', border: 'none', opacity: motifVal.trim() ? 1 : .5 }}>
+              style={{ flex: 1, padding: '5px 8px', borderRadius: 5, border: `1px solid ${meta.color}55`, fontSize: 12, outline: 'none', background: '#fff' }}>
+              <option value="">Sélectionner un motif…</option>
+              {motifs.map(m => <option key={m.id} value={m.label}>{m.label}</option>)}
+            </select>
+            <button onClick={handleConfirm} disabled={!motifVal}
+              style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: motifVal ? 'pointer' : 'not-allowed', background: meta.color, color: '#fff', border: 'none', opacity: motifVal ? 1 : .5 }}>
               ✓
             </button>
             <button onClick={handleCancel}
@@ -387,12 +385,16 @@ function DecisionButtons({ value, onChange }) {
 
 // ── Risk Badge ────────────────────────────────
 function riskBadge(a) {
-  if (a.orphelin_app) return <span style={{ ...S.badge, background: 'rgba(214,59,59,.12)', color: '#d63b3b' }}>Orphelin</span>;
-  if (a.orphelin_ad)  return <span style={{ ...S.badge, background: 'rgba(30,100,200,.1)', color: '#1a5fb4' }}>Non Provisionné</span>;
-  if (a.inactif && a.privilegie) return <span style={{ ...S.badge, background: 'rgba(214,59,59,.15)', color: '#d63b3b' }}>Multi-risque</span>;
-  if (a.inactif)      return <span style={{ ...S.badge, background: 'rgba(201,122,10,.1)', color: '#c97a0a' }}>Inactif</span>;
-  if (a.privilegie)   return <span style={{ ...S.badge, background: 'rgba(124,92,191,.1)', color: '#7c5cbf' }}>Privilégié</span>;
-  return <span style={{ ...S.badge, background: 'rgba(26,158,95,.1)', color: '#1a9e5f' }}>OK</span>;
+  const score = a.score ?? 0;
+  const parts = [];
+  if (a.orphelin_app) parts.push('Orphelin');
+  if (a.orphelin_ad)  parts.push('Non Provisionné');
+  if (a.inactif)      parts.push('Inactif');
+  if (a.privilegie)   parts.push('Privilégié');
+  if (parts.length === 0) return <span style={{ ...S.badge, background: 'rgba(26,158,95,.1)', color: '#1a9e5f' }}>OK</span>;
+  const color = score >= 2 ? '#c0392b' : '#c97a0a';
+  const bg    = score >= 2 ? 'rgba(192,57,43,.12)' : 'rgba(201,122,10,.10)';
+  return <span style={{ ...S.badge, background: bg, color, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={parts.join(' + ')}>{parts.join(' + ')}</span>;
 }
 
 // ── Profile Page ──────────────────────────────
