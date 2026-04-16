@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { campaignAPI, mailAPI } from '../../api';
 import { useLang } from '../../i18n';
 
@@ -186,6 +186,176 @@ function NewCampaignModal({ onClose, onCreated }) {
   );
 }
 
+// ── Motifs Panel (per campaign) ───────────────
+function MotifsPanel({ campaignId }) {
+  const { t } = useLang();
+  const [motifs,    setMotifs]    = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [input,     setInput]     = useState('');
+  const [adding,    setAdding]    = useState(false);
+  const [editId,    setEditId]    = useState(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [error,     setError]     = useState('');
+  const inputRef = useRef(null);
+
+  const load = async () => {
+    try {
+      const r = await campaignAPI.getMotifs(campaignId);
+      setMotifs(r.data);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, [campaignId]);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    setAdding(true); setError('');
+    try {
+      const r = await campaignAPI.addMotif(campaignId, input.trim());
+      setMotifs(prev => [...prev, r.data]);
+      setInput('');
+      if (inputRef.current) inputRef.current.focus();
+    } catch (err) {
+      setError(err.response?.data?.error || t('error'));
+    } finally { setAdding(false); }
+  };
+
+  const handleEdit = (m) => { setEditId(m.id); setEditLabel(m.label); setError(''); };
+
+  const handleEditSave = async (id) => {
+    if (!editLabel.trim()) return;
+    setError('');
+    try {
+      const r = await campaignAPI.updateMotif(campaignId, id, editLabel.trim());
+      setMotifs(prev => prev.map(m => m.id === id ? r.data : m));
+      setEditId(null);
+    } catch (err) {
+      setError(err.response?.data?.error || t('error'));
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm(t('motif.deleteConfirm'))) return;
+    try {
+      await campaignAPI.deleteMotif(campaignId, id);
+      setMotifs(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      setError(err.response?.data?.error || t('error'));
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
+        {t('motif.subtitle')}
+      </p>
+
+      {/* ── Add form ── */}
+      <form onSubmit={handleAdd} style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder={t('motif.addPlaceholder')}
+          style={{
+            flex: 1, padding: '11px 14px', fontSize: 14,
+            border: '1.5px solid #d0d0d0', borderRadius: 8,
+            outline: 'none', background: '#fff', color: '#2d2d2d',
+            transition: 'border-color .15s',
+          }}
+          onFocus={e => e.target.style.borderColor = 'var(--pwc-orange)'}
+          onBlur={e  => e.target.style.borderColor = '#d0d0d0'}
+        />
+        <button type="submit" disabled={adding || !input.trim()}
+          style={{
+            padding: '11px 22px', borderRadius: 8, border: 'none',
+            background: input.trim() ? 'var(--pwc-orange)' : '#e0e0e0',
+            color: input.trim() ? '#fff' : '#aaa',
+            fontSize: 13, fontWeight: 600, cursor: input.trim() ? 'pointer' : 'not-allowed',
+            whiteSpace: 'nowrap', transition: 'all .15s',
+          }}>
+          {adding ? t('motif.adding') : `+ ${t('motif.add')}`}
+        </button>
+      </form>
+      {error && (
+        <div style={{ fontSize: 12, color: '#d63b3b', marginBottom: 10, paddingLeft: 4 }}>{error}</div>
+      )}
+
+      {/* ── List ── */}
+      <div style={{ background: '#fff', border: '1px solid #e2e2e2', borderRadius: 10, overflow: 'hidden', marginTop: 14 }}>
+        {loading ? (
+          <div style={{ padding: 28, textAlign: 'center', color: '#bbb', fontSize: 14 }}>{t('loading')}</div>
+        ) : motifs.length === 0 ? (
+          <div style={{ padding: 36, textAlign: 'center' }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>🏷</div>
+            <div style={{ color: '#bbb', fontSize: 14 }}>{t('motif.noMotifs')}</div>
+            <div style={{ color: '#ccc', fontSize: 12, marginTop: 6 }}>{t('motif.noMotifsHint')}</div>
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              {motifs.map((m, i) => (
+                <tr key={m.id} style={{ borderBottom: i < motifs.length - 1 ? '1px solid #f0f0f0' : 'none', background: editId === m.id ? 'rgba(232,76,46,.03)' : 'transparent' }}>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    {editId === m.id ? (
+                      <input
+                        autoFocus
+                        value={editLabel}
+                        onChange={e => setEditLabel(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleEditSave(m.id); if (e.key === 'Escape') setEditId(null); }}
+                        style={{
+                          width: '100%', padding: '8px 12px', fontSize: 14,
+                          border: '1.5px solid var(--pwc-orange)', borderRadius: 6,
+                          outline: 'none', background: '#fff',
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 14, color: '#2d2d2d' }}>{m.label}</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '13px 16px', textAlign: 'right', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                    {editId === m.id ? (
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button onClick={() => handleEditSave(m.id)} disabled={!editLabel.trim()}
+                          style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: 'var(--pwc-orange)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          {t('save')}
+                        </button>
+                        <button onClick={() => setEditId(null)}
+                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e2e2', background: 'transparent', color: '#888', fontSize: 12, cursor: 'pointer' }}>
+                          {t('cancel')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button onClick={() => handleEdit(m)}
+                          style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #e2e2e2', background: '#fff', color: '#646464', fontSize: 12, cursor: 'pointer' }}>
+                          ✎
+                        </button>
+                        <button onClick={() => handleDelete(m.id)}
+                          style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: 'rgba(214,59,59,.1)', color: '#d63b3b', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Count */}
+      {motifs.length > 0 && (
+        <div style={{ marginTop: 10, fontSize: 12, color: '#aaa', textAlign: 'right' }}>
+          {motifs.length} {t('motif.count')}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Campaign Dashboard (Admin) ─────────────────
 function CampaignDashboard({ campaign }) {
   const { t } = useLang();
@@ -299,6 +469,7 @@ function CampaignDashboard({ campaign }) {
           ['accounts',   t('camp.tabAccounts')],
           ['directions', t('camp.tabDirections')],
           ['managers',   t('camp.tabManagers')],
+          ['motifs',     t('camp.tabMotifs')],
         ].map(([key,label]) => (
           <button key={key} onClick={() => setTab(key)}
             style={{ padding:'8px 16px', border:'none', background:'transparent', fontSize:13, cursor:'pointer', fontWeight: tab===key ? 600 : 400, color: tab===key ? 'var(--pwc-orange)' : '#646464', borderBottom: tab===key ? '2px solid var(--pwc-orange)' : '2px solid transparent', marginBottom:-1 }}>
@@ -410,6 +581,11 @@ function CampaignDashboard({ campaign }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Tab: Motifs */}
+      {tab === 'motifs' && (
+        <MotifsPanel campaignId={campaign.id} />
       )}
 
       {/* Tab: By manager */}

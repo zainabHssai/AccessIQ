@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../App';
-import { campaignAPI, profileAPI, motifAPI } from '../../api';
+import { campaignAPI, profileAPI } from '../../api';
 
 // ── Sidebar ──────────────────────────────────
 function Sidebar() {
@@ -265,7 +265,7 @@ function ManagerDashboard() {
                                     </div>
                                     {a.motif && <div style={{ fontSize:11, color:'#646464', fontStyle:'italic' }}>"{a.motif}"</div>}
                                   </div>
-                                : <DecisionButtons value={a.decision} onChange={(dec, mot) => handleDecision(a.id, dec, mot)} />
+                                : <DecisionButtons value={a.decision} campaignId={selected.id} onChange={(dec, mot) => handleDecision(a.id, dec, mot)} />
                               }
                             </td>
                           </tr>
@@ -302,14 +302,16 @@ const DECISION_META = {
   'Investiguer': { color: '#c97a0a', bg: 'rgba(201,122,10,.12)', useCase: 'Un audit approfondi sera déclenché. Le compte sera suspendu en attente de clarification.' },
 };
 
-function DecisionButtons({ value, onChange }) {
+function DecisionButtons({ value, onChange, campaignId }) {
   const [pending,   setPending]   = useState(null);
   const [motifVal,  setMotifVal]  = useState('');
   const [motifs,    setMotifs]    = useState([]);
 
   useEffect(() => {
-    motifAPI.list().then(r => setMotifs(r.data)).catch(() => {});
-  }, []);
+    if (campaignId) {
+      campaignAPI.getMotifs(campaignId).then(r => setMotifs(r.data)).catch(() => {});
+    }
+  }, [campaignId]);
 
   const handleBtnClick = (key) => {
     if (value === key) {

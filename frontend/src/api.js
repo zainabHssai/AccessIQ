@@ -49,6 +49,13 @@ export const campaignAPI = {
   myAssigned:   ()                          => api.get('/campaigns/assigned'),
   myAccounts:   (id)                        => api.get(`/campaigns/${id}/accounts/mine`),
   saveDecision: (campId, accId, decision, motif) => api.post(`/campaigns/${campId}/accounts/${accId}/decision`, { decision, motif }),
+
+  // ── Motifs par campagne ──
+  getMotifs:    (campId)          => api.get(`/campaigns/${campId}/motifs`),
+  addMotif:     (campId, label)   => api.post(`/campaigns/${campId}/motifs`, { label }),
+  updateMotif:  (campId, id, label) => api.put(`/campaigns/${campId}/motifs/${id}`, { label }),
+  deleteMotif:  (campId, id)      => api.delete(`/campaigns/${campId}/motifs/${id}`),
+
   export: async (id) => {
     const token = localStorage.getItem('token');
     const res = await fetch(`/api/campaigns/${id}/export`, {
@@ -81,8 +88,3 @@ export const profileAPI = {
   updateEmail:  (email_ad)=> api.put('/auth/profile', { email_ad }),
 };
 
-export const motifAPI = {
-  list:   ()      => api.get('/motifs'),
-  create: (label) => api.post('/motifs', { label }),
-  delete: (id)    => api.delete(`/motifs/${id}`),
-};

@@ -12,17 +12,21 @@ export default function LoginPage() {
   const [form,    setForm]    = useState({ email: '', password: '' });
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
+  const [shake,   setShake]   = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); setLoading(true);
+    setError(''); setLoading(true); setShake(false);
     try {
       const res = await authAPI.login(form.email, form.password);
       login(res.data.token, res.data.user);
       if (res.data.user.role === 'admin') navigate('/admin/dashboard');
       else navigate('/manager/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || t('error'));
+      const msg = err.response?.data?.error || t('error');
+      setError(msg);
+      setShake(true);
+      setTimeout(() => setShake(false), 600);
     } finally {
       setLoading(false);
     }
@@ -63,14 +67,15 @@ export default function LoginPage() {
           <h2 style={styles.cardTitle}>{t('login.title')}</h2>
           <p style={styles.cardSub}>{t('login.subtitle')}</p>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} style={shake ? styles.shake : {}}>
             <div className="form-group">
               <label className="form-label">{t('login.email')}</label>
               <input
                 className="form-input"
                 type="email" placeholder="vous@pwc.com"
                 value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
+                onChange={e => { setForm({ ...form, email: e.target.value }); setError(''); }}
+                style={error ? styles.inputError : {}}
                 required
               />
             </div>
@@ -80,15 +85,27 @@ export default function LoginPage() {
                 className="form-input"
                 type="password" placeholder="••••••••"
                 value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
+                onChange={e => { setForm({ ...form, password: e.target.value }); setError(''); }}
+                style={error ? styles.inputError : {}}
                 required
               />
             </div>
 
-            {error && <div className="form-error" style={{ marginBottom: 14 }}>{error}</div>}
+            {error && (
+              <div style={styles.errorBanner}>
+                <span style={{ fontSize: 15 }}>⚠</span>
+                <span>{error}</span>
+              </div>
+            )}
 
-            <button className="btn-primary" type="submit" disabled={loading}>
-              {loading ? t('login.submitting') : t('login.submit')}
+            <button className="btn-primary" type="submit" disabled={loading}
+              style={{ marginTop: 4, opacity: loading ? .7 : 1 }}>
+              {loading
+                ? <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                    <span style={styles.spinner}/>{t('login.submitting')}
+                  </span>
+                : t('login.submit')
+              }
             </button>
           </form>
 
@@ -146,4 +163,24 @@ const styles = {
     borderTop: '1px solid var(--border)', position: 'relative',
   },
   registerLink: { textAlign: 'center', fontSize: 13, color: 'var(--pwc-grey)', marginTop: 8 },
+
+  errorBanner: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    background: 'rgba(214,59,59,.07)', border: '1px solid rgba(214,59,59,.25)',
+    borderRadius: 8, padding: '10px 14px', marginBottom: 14,
+    fontSize: 13, color: '#c0392b', fontWeight: 500,
+  },
+  inputError: {
+    borderColor: '#d63b3b',
+    background: 'rgba(214,59,59,.03)',
+  },
+  spinner: {
+    display: 'inline-block', width: 14, height: 14,
+    border: '2px solid rgba(255,255,255,.4)',
+    borderTopColor: '#fff', borderRadius: '50%',
+    animation: 'spin .7s linear infinite',
+  },
+  shake: {
+    animation: 'shake .5s cubic-bezier(.36,.07,.19,.97)',
+  },
 };

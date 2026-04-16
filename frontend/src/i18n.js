@@ -135,6 +135,7 @@ const translations = {
     'camp.tabAccounts':   'Comptes',
     'camp.tabDirections': 'Par direction',
     'camp.tabManagers':   'Par manager',
+    'camp.tabMotifs':     'Motifs',
 
     'camp.filterAll':     'Tous',
     'camp.filterPending': 'En attente',
@@ -270,6 +271,8 @@ const translations = {
     'motif.adding':             'Ajout…',
     'motif.noMotifs':           'Aucun motif configuré.',
     'motif.deleteConfirm':      'Supprimer ce motif ?',
+    'motif.noMotifsHint':       'Ajoutez un premier motif avec le formulaire ci-dessus.',
+    'motif.count':              'motif(s) configuré(s)',
   },
 
   en: {
@@ -399,6 +402,7 @@ const translations = {
     'camp.tabAccounts':   'Accounts',
     'camp.tabDirections': 'By department',
     'camp.tabManagers':   'By manager',
+    'camp.tabMotifs':     'Motifs',
 
     'camp.filterAll':     'All',
     'camp.filterPending': 'Pending',
@@ -534,6 +538,8 @@ const translations = {
     'motif.adding':             'Adding…',
     'motif.noMotifs':           'No motifs configured.',
     'motif.deleteConfirm':      'Delete this motif?',
+    'motif.noMotifsHint':       'Add the first motif using the form above.',
+    'motif.count':              'motif(s) configured',
   },
 };
 

@@ -244,16 +244,19 @@ class AccountReview(db.Model):
 
 
 # ─────────────────────────────────────────────
-# TABLE : motif_configs
-# Justifications configurées par l'admin
+# TABLE : campaign_motifs
+# Justifications configurées PAR CAMPAGNE
 # pour la décision "Maintenir"
 # ─────────────────────────────────────────────
-class MotifConfig(db.Model):
-    __tablename__ = 'motif_configs'
+class CampaignMotif(db.Model):
+    __tablename__ = 'campaign_motifs'
 
-    id         = db.Column(db.Integer, primary_key=True)
-    label      = db.Column(db.String(200), nullable=False, unique=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    id          = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('campaigns.id'), nullable=False)
+    label       = db.Column(db.String(200), nullable=False)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('campaign_id', 'label', name='uq_camp_motif'),)
 
     def to_dict(self):
-        return {'id': self.id, 'label': self.label}
+        return {'id': self.id, 'label': self.label, 'campaign_id': self.campaign_id}
